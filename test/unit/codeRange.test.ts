@@ -28,9 +28,16 @@ describe('pickRange', () => {
     expect(pickRange(tree, 15, 100)).toEqual({ start: 14, end: 18 });
   });
 
-  test('вложенная функция выигрывает у внешней', () => {
-    const outer = sym(SymbolKind.Function, 0, 20, [sym(SymbolKind.Function, 5, 9)]);
-    expect(pickRange([outer], 6, 100)).toEqual({ start: 5, end: 9 });
+  test('колбэк и вложенная функция разбираются вместе с внешней функцией', () => {
+    const callback = sym(SymbolKind.Function, 3, 3);
+    const outer = sym(SymbolKind.Function, 2, 20, [callback, sym(SymbolKind.Function, 5, 9)]);
+    expect(pickRange([outer], 3, 100)).toEqual({ start: 2, end: 20 });
+    expect(pickRange([outer], 6, 100)).toEqual({ start: 2, end: 20 });
+  });
+
+  test('класс внутри функции не отбирает её', () => {
+    const outer = sym(SymbolKind.Function, 0, 20, [sym(SymbolKind.Class, 2, 10)]);
+    expect(pickRange([outer], 5, 100)).toEqual({ start: 0, end: 20 });
   });
 
   test('без символов — ±10 строк, в границах файла', () => {

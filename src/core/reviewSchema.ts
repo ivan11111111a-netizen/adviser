@@ -35,5 +35,11 @@ export type Issue = z.infer<typeof issueSchema>;
 export type Review = z.infer<typeof reviewSchema>;
 export type Severity = (typeof SEVERITIES)[number];
 
-/** Та же схема в JSON Schema — для провайдеров со structured outputs. */
-export const reviewJsonSchema = z.toJSONSchema(reviewSchema) as Record<string, unknown>;
+/**
+ * Та же схема в JSON Schema — для провайдеров со structured outputs.
+ * draft-7: валидатор Claude Code не знает метасхему draft 2020-12, которую zod ставит по умолчанию.
+ */
+export const reviewJsonSchema = z.toJSONSchema(reviewSchema, { target: 'draft-7' }) as Record<
+  string,
+  unknown
+>;

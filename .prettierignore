@@ -1,3 +1,5 @@
 # Тексты в Markdown автор форматирует сам
 *.md
 package-lock.json
+# Учебный код с ошибками нарочно
+test/fixtures/

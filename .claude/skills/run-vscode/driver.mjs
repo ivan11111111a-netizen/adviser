@@ -138,6 +138,28 @@ const COMMANDS = {
       ),
     );
   },
+  // setting adviser.provider=claude-code: пишет в settings.json профиля, VS Code подхватывает на лету.
+  async setting(assignment) {
+    const [key, ...rest] = assignment.split('=');
+    const raw = rest.join('=');
+    const file = path.join(WORK, 'profile', 'User', 'settings.json');
+    const settings = JSON.parse(fs.readFileSync(file, 'utf8'));
+    try {
+      settings[key] = JSON.parse(raw);
+    } catch {
+      settings[key] = raw;
+    }
+    fs.writeFileSync(file, JSON.stringify(settings, null, 2));
+    await sleep(1500);
+  },
+  // waittext Adviser: замечаний — ждёт текст где угодно в окне (статус-бар, уведомления), до 120 с.
+  async waittext(text) {
+    await waitFor(
+      () => page.evaluate((t) => document.body.innerText.includes(t), text),
+      120_000,
+      `за 120 с в окне не появился текст «${text}»`,
+    );
+  },
 };
 
 const steps = process.argv.slice(2).map((s) => {

@@ -22,6 +22,7 @@ test('JSON Schema для провайдеров требует те же пол�
     items: Node;
   };
   const issue = (reviewJsonSchema as unknown as Node).properties.issues.items;
+  expect(reviewJsonSchema.$schema).toBe('http://json-schema.org/draft-07/schema#');
   expect(reviewJsonSchema.required).toEqual(['summary', 'issues']);
   expect(issue.required).toContain('hint');
   expect(issue.required).not.toContain('readMore');

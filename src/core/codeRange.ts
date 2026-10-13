@@ -29,34 +29,33 @@ const isFunctionLike = (s: SymbolNode) =>
   FUNCTION_KINDS.includes(s.kind) ||
   ((s.kind === SymbolKind.Variable || s.kind === SymbolKind.Constant) && s.end > s.start);
 
-function innermost(
-  nodes: SymbolNode[],
-  line: number,
-  match: (s: SymbolNode) => boolean,
-): SymbolNode | undefined {
-  for (const node of nodes) {
-    if (line < node.start || line > node.end) {
-      continue;
-    }
-    const inner = innermost(node.children, line, match);
-    if (inner) {
-      return inner;
-    }
-    if (match(node)) {
-      return node;
-    }
+/**
+ * Первая сверху функция на пути к курсору. Классы и прочие контейнеры проходим насквозь,
+ * поэтому метод берётся целиком, а колбэки и вложенные функции — вместе со своей функцией
+ * (TypeScript отдаёт колбэк `reduce` отдельным символом).
+ */
+function outermostFunction(nodes: SymbolNode[], line: number): SymbolNode | undefined {
+  const node = nodes.find((n) => line >= n.start && line <= n.end);
+  if (!node) {
+    return undefined;
   }
-  return undefined;
+  return isFunctionLike(node) ? node : outermostFunction(node.children, line);
+}
+
+function innermostClass(nodes: SymbolNode[], line: number): SymbolNode | undefined {
+  const node = nodes.find((n) => line >= n.start && line <= n.end);
+  if (!node) {
+    return undefined;
+  }
+  return innermostClass(node.children, line) ?? (node.kind === SymbolKind.Class ? node : undefined);
 }
 
 /**
- * Что разбирать для курсора на строке line: самую внутреннюю функцию или метод, иначе класс,
+ * Что разбирать для курсора на строке line: функцию или метод, иначе класс,
  * иначе строки вокруг курсора (±FALLBACK_CONTEXT), если языковой сервер не дал символов.
  */
 export function pickRange(symbols: SymbolNode[], line: number, lineCount: number): LineRange {
-  const found =
-    innermost(symbols, line, isFunctionLike) ??
-    innermost(symbols, line, (s) => s.kind === SymbolKind.Class);
+  const found = outermostFunction(symbols, line) ?? innermostClass(symbols, line);
   if (found) {
     return { start: found.start, end: found.end };
   }

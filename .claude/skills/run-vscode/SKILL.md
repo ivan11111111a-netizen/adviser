@@ -8,7 +8,7 @@ description: Запустить расширение Adviser в живом VS Co
 `driver.mjs` запускает отдельную копию VS Code из `.vscode-test/`. Профиль у неё чистый: `.vscode-test/driver/profile/` пересоздаётся на каждом прогоне. Драйвер открывает в ней этот проект, выполняет команды из аргументов по порядку и закрывает VS Code. Управляет окнами через Playwright по CDP. Профиль и VS Code пользователя он не трогает. Проверено на Windows; на Linux без дисплея нужен `xvfb-run -a`, но это не проверялось.
 
 ```powershell
-node .claude/skills/run-vscode/driver.mjs f5 "open test/fixtures/sample.js" "goto 3" "cmd Adviser: Разобрать эту функцию" "sleep 15000" "ss result"
+node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "ss editor"
 ```
 
 Каждый аргумент в кавычках — одна команда, её параметр идёт через пробел. Прогон занимает 20–30 с, всё это время на экране пользователя видны окна VS Code. При первом запуске и после выхода новой версии VS Code скачивается ~350 МБ.
@@ -24,6 +24,16 @@ node .claude/skills/run-vscode/driver.mjs f5 "open test/fixtures/sample.js" "got
 | `ss [имя]` | скриншот активного окна в `.vscode-test/driver/shots/<имя>.png`. Потом открыть его через Read и посмотреть |
 | `toasts` | тексты уведомлений |
 | `text <css>` | innerText элемента, например `text .monaco-hover` после `cmd Show or Focus Hover` |
+| `setting <ключ>=<значение>` | записать настройку в профиль, VS Code подхватит на лету. Значение разбирается как JSON, иначе берётся строкой |
+| `waittext <текст>` | ждать до 120 с, пока текст появится где-нибудь в окне, например `waittext Adviser: замечаний` |
+
+Разбор на подписке Claude (провайдер `claude-code` работает только из исходников, то есть здесь):
+
+```powershell
+node .claude/skills/run-vscode/driver.mjs "setting adviser.provider=claude-code" "setting adviser.model=sonnet" f5 "open test/fixtures/sample.js" "goto 4" "cmd Adviser: Разобрать эту функцию" "waittext Adviser: замечаний" "ss review"
+```
+
+Лог расширения — `.vscode-test/driver/profile/logs/*/window2/exthost/undefined_publisher.adviser/Adviser.log`.
 
 При ошибке драйвер делает `error.png`, печатает причину, закрывает VS Code и выходит с кодом 1.
 

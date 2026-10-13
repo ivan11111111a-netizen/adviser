@@ -2,6 +2,8 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
+  // Учебный код с ошибками нарочно
+  { ignores: ['test/fixtures/**'] },
   tseslint.configs.recommended,
   {
     files: ['**/*.ts'],
