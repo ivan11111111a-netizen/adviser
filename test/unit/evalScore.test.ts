@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { EvalCase } from '../../evals/cases';
-import { scoreCase, summarize } from '../../evals/score';
+import { scoreCase, summarize, withMinConfidence } from '../../evals/score';
 import type { Issue } from '../../src/core/reviewSchema';
 import { mockReview } from '../../src/providers/mock';
 
@@ -97,6 +97,31 @@ describe('summarize', () => {
     expect(summary.judgedHints).toBe(2);
     expect(summary.hintLeaks).toBe(1 / 2);
     expect(summary.hintGuides).toBe(1 / 2);
+  });
+
+  test('порог уверенности отсекает замечания, оценки судьи переезжают за ними', () => {
+    const judgment = (index: number) => ({
+      index,
+      leaks: false,
+      guides: true,
+      comment: `${index}`,
+    });
+    const result = withMinConfidence(
+      {
+        evalCase: average,
+        issues: [
+          issue('a', 1, 1, { confidence: 0.5 }),
+          issue('b', 2, 2, { confidence: 0.9 }),
+          issue('c', 3, 3, { confidence: 0.8 }),
+        ],
+        seconds: 1,
+        judgments: [judgment(0), judgment(2)],
+      },
+      0.8,
+    );
+    expect(result.issues!.map((i) => i.patternId)).toEqual(['b', 'c']);
+    expect(result.judgments).toEqual([{ ...judgment(2), index: 1 }]);
+    expect(withMinConfidence({ evalCase: clean, seconds: 1 }, 0.8).issues).toBeUndefined();
   });
 
   test('пустой набор не делит на ноль', () => {

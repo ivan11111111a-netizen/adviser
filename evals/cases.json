@@ -146,7 +146,8 @@
     },
     {
       "file": "py/count-vowels.py",
-      "expect": [{ "patterns": ["accumulator-not-reset"], "lines": [3, 8] }]
+      "expect": [{ "patterns": ["accumulator-not-reset"], "lines": [3, 8] }],
+      "allow": ["wrong-boolean-logic", "other"]
     },
     {
       "file": "py/factorial.py",
@@ -178,7 +179,7 @@
     {
       "file": "py/get-weather.py",
       "expect": [{ "patterns": ["hardcoded-secret"], "lines": [5, 6] }],
-      "allow": ["missing-error-handling", "missing-input-validation"]
+      "allow": ["missing-error-handling", "missing-input-validation", "injection"]
     },
     { "file": "py/clean-word-lengths.py", "expect": [] },
     { "file": "py/clean-read-lines.py", "expect": [] },

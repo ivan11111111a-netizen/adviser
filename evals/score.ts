@@ -56,6 +56,22 @@ export interface CaseResult {
   judgments?: Judgment[];
 }
 
+/** Подбор порога: оставляет замечания с confidence от min, номера в оценках судьи сдвигаются за ними. */
+export function withMinConfidence(result: CaseResult, min: number): CaseResult {
+  const { issues, judgments } = result;
+  if (!issues) {
+    return result;
+  }
+  const kept = issues.flatMap((issue, i) => (issue.confidence >= min ? [i] : []));
+  return {
+    ...result,
+    issues: kept.map((i) => issues[i]),
+    judgments: judgments?.flatMap((j) =>
+      kept.includes(j.index) ? [{ ...j, index: kept.indexOf(j.index) }] : [],
+    ),
+  };
+}
+
 export interface Summary {
   cases: number;
   failed: number;

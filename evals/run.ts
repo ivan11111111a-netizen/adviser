@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { runReview, type Provider } from '../src/core/engine';
+import { MIN_CONFIDENCE, runReview, type Provider } from '../src/core/engine';
 import { normalizePatternIds, parsePatterns, patternsFor } from '../src/core/patterns';
 import {
   ADVICE_LANGUAGES,
@@ -24,7 +24,7 @@ import {
   type Judgment,
 } from './judge';
 import { renderReport, type RunMeta } from './report';
-import { summarize, type CaseResult } from './score';
+import { summarize, withMinConfidence, type CaseResult } from './score';
 
 const HELP = `npm run eval -- [параметры]
 
@@ -37,6 +37,8 @@ const HELP = `npm run eval -- [параметры]
   --concurrency <n>     сколько запросов сразу, по умолчанию 3
   --rescore <файл.json> взять ответы сохранённого прогона, а не спрашивать модель: пересчитать
                         метрики по текущему evals/cases.json или добавить оценки судьи (--judge)
+  --min-confidence <x>  для подбора порога: в отчёт идут только замечания с confidence от x
+                        (сохранённые ответы уже отсечены порогом движка ${MIN_CONFIDENCE})
 
 Результат: evals/runs/<id>.json (ответы и оценки) и evals/runs/<id>.md (отчёт).`;
 
@@ -64,6 +66,7 @@ const { values: args } = parseArgs({
     only: { type: 'string' },
     concurrency: { type: 'string', default: '3' },
     rescore: { type: 'string' },
+    'min-confidence': { type: 'string' },
     help: { type: 'boolean' },
   },
 });
@@ -180,11 +183,17 @@ function save(record: RunRecord) {
   mkdirSync(RUNS, { recursive: true });
   writeFileSync(path.join(RUNS, `${record.id}.json`), JSON.stringify(record, null, 2));
   const byFile = new Map(record.results.map((r) => [r.file, r]));
+  const min = args['min-confidence'] ? Number(args['min-confidence']) : undefined;
   const results = cases.flatMap((evalCase): CaseResult[] => {
     const r = byFile.get(evalCase.file);
-    return r ? [{ evalCase, issues: r.issues, seconds: r.seconds, judgments: r.judgments }] : [];
+    if (!r) {
+      return [];
+    }
+    const result = { evalCase, issues: r.issues, seconds: r.seconds, judgments: r.judgments };
+    return [min === undefined ? result : withMinConfidence(result, min)];
   });
-  const reportFile = path.join(RUNS, `${record.id}.md`);
+  // Отчёт с другим порогом не затирает основной.
+  const reportFile = path.join(RUNS, `${record.id}${min === undefined ? '' : `.min${min}`}.md`);
   writeFileSync(reportFile, renderReport(record, results));
   const s = summarize(results);
   const judged = s.judgedHints
