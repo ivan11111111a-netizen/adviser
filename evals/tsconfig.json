@@ -1,0 +1,5 @@
+{
+  // Скрипт собирает esbuild (npm run eval), как и src. Учебный код в cases/ не проверяем.
+  "extends": "../tsconfig.json",
+  "include": ["*.ts"]
+}

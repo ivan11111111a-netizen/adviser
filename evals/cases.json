@@ -1,0 +1,188 @@
+{
+  "cases": [
+    {
+      "file": "js/average-price.js",
+      "expect": [
+        { "patterns": ["reduce-without-initial"], "lines": [2, 2] },
+        { "patterns": ["empty-collection", "division-by-zero"], "lines": [2, 3] }
+      ]
+    },
+    {
+      "file": "js/find-user.js",
+      "expect": [{ "patterns": ["off-by-one"], "lines": [2, 3] }],
+      "allow": ["loose-equality", "missing-return"]
+    },
+    {
+      "file": "js/count-words.js",
+      "expect": [
+        { "patterns": ["accumulator-not-reset", "missing-null-check", "other"], "lines": [5, 5] }
+      ],
+      "allow": ["empty-collection"]
+    },
+    {
+      "file": "js/is-adult.js",
+      "expect": [{ "patterns": ["redundant-boolean"], "lines": [2, 6] }]
+    },
+    {
+      "file": "js/total-score.js",
+      "expect": [{ "patterns": ["async-in-foreach", "missing-await"], "lines": [3, 7] }],
+      "allow": ["missing-error-handling"]
+    },
+    {
+      "file": "js/cheapest-three.js",
+      "expect": [{ "patterns": ["sort-without-comparator"], "lines": [2, 2] }],
+      "allow": ["mutating-input"]
+    },
+    {
+      "file": "js/remove-negatives.js",
+      "expect": [{ "patterns": ["modify-while-iterating"], "lines": [2, 6] }],
+      "allow": ["mutating-input"]
+    },
+    {
+      "file": "js/all-positive.js",
+      "expect": [{ "patterns": ["premature-return"], "lines": [2, 8] }],
+      "allow": ["empty-collection", "missing-return"]
+    },
+    {
+      "file": "js/format-greeting.js",
+      "expect": [{ "patterns": ["print-instead-of-return"], "lines": [1, 3] }]
+    },
+    {
+      "file": "js/total-from-inputs.js",
+      "expect": [{ "patterns": ["string-number-mix"], "lines": [4, 4] }],
+      "allow": ["missing-input-validation"]
+    },
+    {
+      "file": "js/show-comment.js",
+      "expect": [{ "patterns": ["unsafe-html", "injection"], "lines": [3, 3] }],
+      "allow": ["missing-null-check"]
+    },
+    {
+      "file": "js/load-config.js",
+      "expect": [{ "patterns": ["missing-await"], "lines": [4, 5] }],
+      "allow": ["missing-error-handling"]
+    },
+    {
+      "file": "js/get-user-name.js",
+      "expect": [{ "patterns": ["missing-error-handling"], "lines": [2, 4] }],
+      "allow": ["missing-null-check", "missing-input-validation"]
+    },
+    {
+      "file": "js/with-dark-theme.js",
+      "expect": [{ "patterns": ["alias-instead-of-copy", "mutating-input"], "lines": [2, 3] }]
+    },
+    {
+      "file": "js/add-purchase.js",
+      "expect": [{ "patterns": ["global-mutation"], "lines": [4, 4] }]
+    },
+    {
+      "file": "js/countdown.js",
+      "expect": [{ "patterns": ["infinite-loop"], "lines": [3, 5] }]
+    },
+    {
+      "file": "js/count-matching.js",
+      "expect": [{ "patterns": ["unclear-name"], "lines": [1, 9] }]
+    },
+    { "file": "js/clean-max.js", "expect": [] },
+    { "file": "js/clean-capitalize.js", "expect": [] },
+    { "file": "js/clean-average.js", "expect": [] },
+    { "file": "js/clean-adult-names.js", "expect": [] },
+
+    {
+      "file": "ts/parse-age.ts",
+      "level": "intermediate",
+      "expect": [{ "patterns": ["any-type"], "lines": [1, 1] }],
+      "allow": ["missing-input-validation", "string-number-mix"]
+    },
+    {
+      "file": "ts/first-email.ts",
+      "level": "intermediate",
+      "expect": [
+        { "patterns": ["non-null-assertion"], "lines": [7, 7] },
+        { "patterns": ["empty-collection"], "lines": [7, 7] }
+      ]
+    },
+    {
+      "file": "ts/counter.ts",
+      "expect": [{ "patterns": ["lost-this"], "lines": [9, 9] }]
+    },
+    {
+      "file": "ts/is-valid-percent.ts",
+      "expect": [{ "patterns": ["wrong-boolean-logic"], "lines": [2, 2] }]
+    },
+    {
+      "file": "ts/paid-in-full.ts",
+      "expect": [{ "patterns": ["float-equality"], "lines": [3, 3] }]
+    },
+    { "file": "ts/clean-sum-prices.ts", "expect": [] },
+    { "file": "ts/clean-group.ts", "expect": [] },
+
+    {
+      "file": "py/read-numbers.py",
+      "expect": [{ "patterns": ["unclosed-resource"], "lines": [2, 6] }],
+      "allow": ["missing-error-handling", "missing-input-validation"]
+    },
+    {
+      "file": "py/add-item.py",
+      "expect": [{ "patterns": ["mutable-default-argument"], "lines": [1, 2] }]
+    },
+    {
+      "file": "py/safe-divide.py",
+      "expect": [{ "patterns": ["swallowed-exception", "broad-exception"], "lines": [4, 5] }],
+      "allow": ["division-by-zero", "missing-return"]
+    },
+    {
+      "file": "py/is-admin.py",
+      "expect": [{ "patterns": ["is-for-equality"], "lines": [2, 2] }]
+    },
+    {
+      "file": "py/average.py",
+      "expect": [{ "patterns": ["division-by-zero", "empty-collection"], "lines": [2, 2] }]
+    },
+    {
+      "file": "py/middle-index.py",
+      "expect": [{ "patterns": ["integer-division"], "lines": [2, 2] }],
+      "allow": ["empty-collection"]
+    },
+    {
+      "file": "py/count-vowels.py",
+      "expect": [{ "patterns": ["accumulator-not-reset"], "lines": [3, 8] }]
+    },
+    {
+      "file": "py/factorial.py",
+      "expect": [{ "patterns": ["recursion-without-base-case"], "lines": [2, 4] }],
+      "allow": ["missing-input-validation"]
+    },
+    {
+      "file": "py/remove-short-words.py",
+      "expect": [{ "patterns": ["modify-while-iterating"], "lines": [2, 4] }],
+      "allow": ["mutating-input"]
+    },
+    {
+      "file": "py/print-names.py",
+      "expect": [{ "patterns": ["manual-index-loop"], "lines": [2, 3] }]
+    },
+    {
+      "file": "py/find-user.py",
+      "expect": [{ "patterns": ["injection"], "lines": [2, 3] }]
+    },
+    {
+      "file": "py/ask-total.py",
+      "expect": [{ "patterns": ["string-number-mix"], "lines": [2, 4] }],
+      "allow": ["missing-input-validation", "missing-error-handling"]
+    },
+    {
+      "file": "py/grade.py",
+      "expect": [{ "patterns": ["wrong-boolean-logic", "other"], "lines": [2, 7] }]
+    },
+    {
+      "file": "py/get-weather.py",
+      "expect": [{ "patterns": ["hardcoded-secret"], "lines": [5, 6] }],
+      "allow": ["missing-error-handling", "missing-input-validation"]
+    },
+    { "file": "py/clean-word-lengths.py", "expect": [] },
+    { "file": "py/clean-read-lines.py", "expect": [] },
+    { "file": "py/clean-is-palindrome.py", "expect": [] },
+    { "file": "py/clean-average.py", "expect": [] }
+  ]
+}

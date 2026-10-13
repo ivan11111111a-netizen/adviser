@@ -9,3 +9,6 @@ out/
 .claude/skills/*
 !.claude/skills/run-vscode/
 .claude/settings.local.json
+
+# Ответы моделей и отчёты eval: в git — только выбранные отчёты в docs/evals/
+evals/runs/

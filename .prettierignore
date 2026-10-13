@@ -3,3 +3,4 @@
 package-lock.json
 # Учебный код с ошибками нарочно
 test/fixtures/
+evals/cases/

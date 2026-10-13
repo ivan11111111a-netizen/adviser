@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   // Учебный код с ошибками нарочно
-  { ignores: ['test/fixtures/**'] },
+  { ignores: ['test/fixtures/**', 'evals/cases/**'] },
   tseslint.configs.recommended,
   {
     files: ['**/*.ts'],
@@ -18,8 +18,8 @@ export default defineConfig(
     },
   },
   {
-    // Ядро — чистая логика, которую гоняют юнит-тесты без VS Code (AGENTS.md).
-    files: ['src/core/**/*.ts', 'test/unit/**/*.ts'],
+    // Ядро — чистая логика, которую гоняют юнит-тесты и eval без VS Code (AGENTS.md).
+    files: ['src/core/**/*.ts', 'test/unit/**/*.ts', 'evals/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
