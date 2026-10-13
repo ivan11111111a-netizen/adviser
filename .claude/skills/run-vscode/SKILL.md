@@ -20,6 +20,7 @@ node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "s
 | `open <путь>` | Ctrl+P с абсолютным путём; относительный путь считается от корня проекта |
 | `goto <строка>` | Ctrl+G, потом проверка по статус-бару, что курсор действительно там |
 | `type <текст>` / `press <клавиша>` | клавиатура: `press Control+S`, `press Escape` |
+| `click <текст>` | клик мышью по первой видимой ссылке или кнопке ровно с этим текстом, например `click Объяснить` в открытом hover |
 | `sleep [мс]` | пауза, по умолчанию 1000 |
 | `ss [имя]` | скриншот активного окна в `.vscode-test/driver/shots/<имя>.png`. Потом открыть его через Read и посмотреть |
 | `toasts` | тексты уведомлений |
@@ -32,6 +33,8 @@ node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "s
 ```powershell
 node .claude/skills/run-vscode/driver.mjs "setting adviser.provider=claude-code" "setting adviser.model=sonnet" f5 "open test/fixtures/sample.js" "goto 4" "cmd Adviser: Разобрать эту функцию" "waittext Adviser: замечаний" "ss review"
 ```
+
+Ступени в hover: после разбора `"goto 9" "press End" "cmd Show or Focus Hover" "click Показать решение" "text .monaco-hover"`. `goto` ставит курсор в колонку 1, а подчёркивание начинается с первого непробельного символа, поэтому нужен `press End`. Модель от прогона к прогону отвечает по-разному: у `critical` кнопки «Объяснить» нет, и `click Объяснить` на такой строке упадёт.
 
 Лог расширения — `.vscode-test/driver/profile/logs/*/window2/exthost/undefined_publisher.adviser/Adviser.log`.
 

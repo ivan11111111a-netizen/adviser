@@ -119,6 +119,11 @@ const COMMANDS = {
       throw new Error(`курсор не на строке ${line}: статус-бар «${status}»`);
     }
   },
+  // click Объяснить — клик мышью по первой видимой ссылке или кнопке ровно с таким текстом.
+  async click(text) {
+    await page.getByText(text, { exact: true }).first().click({ timeout: 10_000 });
+    await sleep(1500);
+  },
   type: (text) => page.keyboard.type(text, { delay: 20 }),
   press: (key) => page.keyboard.press(key),
   sleep: (ms) => sleep(Number(ms) || 1000),
