@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { createProvider } from '../config/provider';
 import { pickRange, toFileLines, type LineRange } from '../core/codeRange';
 import { runReview } from '../core/engine';
+import { normalizePatternIds, parsePatterns, patternsFor } from '../core/patterns';
 import {
   buildPrompt,
   LEVELS,
@@ -36,12 +37,9 @@ export async function reviewFunction(
     return;
   }
 
-  const template = parseTemplate(
-    new TextDecoder().decode(
-      await vscode.workspace.fs.readFile(
-        vscode.Uri.joinPath(context.extensionUri, 'prompts', `${PROMPT_VERSION}.md`),
-      ),
-    ),
+  const template = parseTemplate(await readBundled(context, 'prompts', `${PROMPT_VERSION}.md`));
+  const patterns = parsePatterns(
+    JSON.parse(await readBundled(context, 'patterns', 'patterns.json')),
   );
   const code = doc.getText(
     new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length),
@@ -49,7 +47,13 @@ export async function reviewFunction(
   const config = vscode.workspace.getConfiguration('adviser', doc.uri);
   const level = LEVELS.find((l) => l === config.get<string>('level')) ?? 'beginner';
   const language = resolveLanguage(config.get<string>('language'), vscode.env.language);
-  const request = buildPrompt(template, { languageId: doc.languageId, code, level, language });
+  const request = buildPrompt(template, {
+    languageId: doc.languageId,
+    code,
+    level,
+    language,
+    patterns: patternsFor(patterns, doc.languageId),
+  });
 
   log.info(
     `разбор ${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}, уровень ${level}, язык ${language}`,
@@ -64,8 +68,15 @@ export async function reviewFunction(
     return;
   }
 
-  const { issues, summary } = result.review;
-  log.info(`${summary} (замечаний: ${issues.length})`);
+  const { review, unknown } = normalizePatternIds(result.review, patterns);
+  if (unknown.length) {
+    // Повод дополнить patterns/patterns.json.
+    log.info(`patternId не из списка, записаны как other: ${unknown.join(', ')}`);
+  }
+  const { issues, summary } = review;
+  log.info(
+    `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')})`,
+  );
   findings.replace(
     doc.uri,
     range,
@@ -84,6 +95,13 @@ export async function reviewFunction(
     }),
   );
   status(issues.length ? `замечаний: ${issues.length}` : 'замечаний нет');
+}
+
+/** Файл из папки расширения: промпты и patterns.json едут внутри .vsix. */
+async function readBundled(context: vscode.ExtensionContext, ...path: string[]) {
+  return new TextDecoder().decode(
+    await vscode.workspace.fs.readFile(vscode.Uri.joinPath(context.extensionUri, ...path)),
+  );
 }
 
 /** Выделение до начала следующей строки эту строку не захватывает. */

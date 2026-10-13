@@ -1,0 +1,332 @@
+{
+  "patterns": [
+    {
+      "id": "off-by-one",
+      "title": {
+        "ru": "ошибка на единицу в границе цикла, индекса или среза",
+        "en": "off-by-one error in a loop bound, index or slice"
+      }
+    },
+    {
+      "id": "empty-collection",
+      "title": {
+        "ru": "не учтён пустой список, массив или строка",
+        "en": "empty list, array or string not handled"
+      }
+    },
+    {
+      "id": "missing-null-check",
+      "title": {
+        "ru": "не учтено значение null, undefined или None",
+        "en": "null, undefined or None not handled"
+      }
+    },
+    {
+      "id": "division-by-zero",
+      "title": { "ru": "возможное деление на ноль", "en": "possible division by zero" }
+    },
+    {
+      "id": "missing-return",
+      "title": {
+        "ru": "не все ветки возвращают значение",
+        "en": "not every branch returns a value"
+      }
+    },
+    {
+      "id": "premature-return",
+      "title": {
+        "ru": "return внутри цикла срабатывает уже на первой итерации",
+        "en": "return inside a loop fires on the first iteration"
+      }
+    },
+    {
+      "id": "wrong-boolean-logic",
+      "title": {
+        "ru": "неверное условие: перепутаны «и»/«или», условие перевёрнуто или неполное",
+        "en": "wrong condition: and/or mixed up, inverted or incomplete"
+      }
+    },
+    {
+      "id": "wrong-variable",
+      "title": { "ru": "использована не та переменная", "en": "the wrong variable is used" }
+    },
+    {
+      "id": "accumulator-not-reset",
+      "title": {
+        "ru": "счётчик или накопитель заведён не там и не сбрасывается",
+        "en": "counter or accumulator initialized in the wrong place"
+      }
+    },
+    {
+      "id": "infinite-loop",
+      "title": {
+        "ru": "условие цикла никогда не станет ложным",
+        "en": "loop condition never becomes false"
+      }
+    },
+    {
+      "id": "recursion-without-base-case",
+      "title": {
+        "ru": "у рекурсии нет базового случая или он недостижим",
+        "en": "recursion without a reachable base case"
+      }
+    },
+    {
+      "id": "float-equality",
+      "title": {
+        "ru": "дробные числа сравниваются на точное равенство",
+        "en": "floating-point numbers compared for exact equality"
+      }
+    },
+    {
+      "id": "string-number-mix",
+      "title": {
+        "ru": "строка и число перепутаны: \"1\" + 1, ввод не превращён в число",
+        "en": "string and number mixed up: \"1\" + 1, input not converted to a number"
+      }
+    },
+    {
+      "id": "mutating-input",
+      "title": {
+        "ru": "функция меняет переданный ей объект или список",
+        "en": "function mutates its argument"
+      }
+    },
+    {
+      "id": "alias-instead-of-copy",
+      "title": {
+        "ru": "скопирована ссылка, а не значение: правка копии меняет оригинал",
+        "en": "reference copied instead of the value: changing the copy changes the original"
+      }
+    },
+    {
+      "id": "modify-while-iterating",
+      "title": {
+        "ru": "коллекция меняется во время обхода",
+        "en": "collection modified while iterating over it"
+      }
+    },
+    {
+      "id": "global-mutation",
+      "title": {
+        "ru": "функция меняет глобальную переменную",
+        "en": "function changes a global variable"
+      }
+    },
+    {
+      "id": "print-instead-of-return",
+      "title": {
+        "ru": "функция печатает результат вместо того, чтобы вернуть его",
+        "en": "function prints the result instead of returning it"
+      }
+    },
+    {
+      "id": "shadowed-name",
+      "title": {
+        "ru": "имя перекрывает встроенную функцию или внешнюю переменную",
+        "en": "name shadows a built-in or an outer variable"
+      }
+    },
+    {
+      "id": "swallowed-exception",
+      "title": {
+        "ru": "ошибка перехватывается и молча игнорируется",
+        "en": "exception caught and silently ignored"
+      }
+    },
+    {
+      "id": "broad-exception",
+      "title": {
+        "ru": "перехватываются все ошибки подряд вместо конкретных",
+        "en": "catching every exception instead of specific ones"
+      }
+    },
+    {
+      "id": "missing-error-handling",
+      "title": {
+        "ru": "операция может упасть (файл, сеть, разбор данных), а ошибка не обрабатывается",
+        "en": "operation can fail (file, network, parsing) and the error is not handled"
+      }
+    },
+    {
+      "id": "unclosed-resource",
+      "title": {
+        "ru": "файл или соединение не закрывается",
+        "en": "file or connection is not closed"
+      }
+    },
+    {
+      "id": "missing-input-validation",
+      "title": {
+        "ru": "данные извне (ввод пользователя, файл, запрос) не проверяются",
+        "en": "external input (user input, file, request) is not validated"
+      }
+    },
+    {
+      "id": "missing-await",
+      "title": {
+        "ru": "промис или корутину не дождались",
+        "en": "promise or coroutine not awaited"
+      },
+      "languages": ["js", "py"]
+    },
+    {
+      "id": "async-in-foreach",
+      "title": {
+        "ru": "await внутри forEach ничего не ждёт",
+        "en": "await inside forEach does not wait"
+      },
+      "languages": ["js"]
+    },
+    {
+      "id": "reduce-without-initial",
+      "title": {
+        "ru": "reduce без начального значения",
+        "en": "reduce without an initial value"
+      },
+      "languages": ["js"]
+    },
+    {
+      "id": "loose-equality",
+      "title": { "ru": "== вместо ===", "en": "== instead of ===" },
+      "languages": ["js"]
+    },
+    {
+      "id": "sort-without-comparator",
+      "title": {
+        "ru": "sort() без функции сравнения сортирует числа как строки",
+        "en": "sort() without a comparator sorts numbers as strings"
+      },
+      "languages": ["js"]
+    },
+    {
+      "id": "lost-this",
+      "title": {
+        "ru": "потерян this, когда метод передан как колбэк",
+        "en": "this lost when a method is passed as a callback"
+      },
+      "languages": ["js"]
+    },
+    {
+      "id": "any-type",
+      "title": {
+        "ru": "any вместо конкретного типа",
+        "en": "any instead of a specific type"
+      },
+      "languages": ["ts"]
+    },
+    {
+      "id": "non-null-assertion",
+      "title": {
+        "ru": "оператор ! прячет возможный null",
+        "en": "non-null assertion hides a possible null"
+      },
+      "languages": ["ts"]
+    },
+    {
+      "id": "mutable-default-argument",
+      "title": {
+        "ru": "изменяемое значение по умолчанию у аргумента",
+        "en": "mutable default argument"
+      },
+      "languages": ["py"]
+    },
+    {
+      "id": "is-for-equality",
+      "title": {
+        "ru": "is вместо == для сравнения значений",
+        "en": "is used instead of == to compare values"
+      },
+      "languages": ["py"]
+    },
+    {
+      "id": "integer-division",
+      "title": { "ru": "перепутаны / и //", "en": "/ and // mixed up" },
+      "languages": ["py"]
+    },
+    {
+      "id": "unclear-name",
+      "title": {
+        "ru": "непонятное имя переменной или функции",
+        "en": "unclear variable or function name"
+      }
+    },
+    {
+      "id": "magic-number",
+      "title": { "ru": "число в коде без объяснения", "en": "unexplained magic number" }
+    },
+    {
+      "id": "deep-nesting",
+      "title": {
+        "ru": "глубокая вложенность, хотя можно выйти раньше",
+        "en": "deep nesting where an early return would do"
+      }
+    },
+    {
+      "id": "redundant-boolean",
+      "title": {
+        "ru": "лишнее сравнение с true/false или if ради возврата true/false",
+        "en": "redundant comparison with true/false or if/else returning a boolean"
+      }
+    },
+    {
+      "id": "manual-index-loop",
+      "title": {
+        "ru": "цикл по индексам там, где хватит обхода элементов",
+        "en": "index loop where iterating over elements is enough"
+      }
+    },
+    {
+      "id": "duplicated-code",
+      "title": { "ru": "повторяющийся код", "en": "duplicated code" }
+    },
+    {
+      "id": "does-too-much",
+      "title": { "ru": "функция делает слишком много", "en": "function does too much" }
+    },
+    {
+      "id": "nested-loop-lookup",
+      "title": {
+        "ru": "поиск в списке внутри цикла: квадратичная сложность",
+        "en": "lookup in a list inside a loop makes it quadratic"
+      }
+    },
+    {
+      "id": "string-concat-in-loop",
+      "title": {
+        "ru": "строка собирается сложением в цикле",
+        "en": "string built with + in a loop"
+      },
+      "languages": ["py"]
+    },
+    {
+      "id": "injection",
+      "title": {
+        "ru": "SQL-запрос или команда собирается из строк с данными пользователя",
+        "en": "SQL query or shell command built from user data"
+      }
+    },
+    {
+      "id": "eval-usage",
+      "title": {
+        "ru": "eval или exec на внешних данных",
+        "en": "eval or exec on external data"
+      }
+    },
+    {
+      "id": "hardcoded-secret",
+      "title": {
+        "ru": "пароль или ключ прямо в коде",
+        "en": "password or key hardcoded in the source"
+      }
+    },
+    {
+      "id": "unsafe-html",
+      "title": {
+        "ru": "данные пользователя вставляются в HTML без экранирования",
+        "en": "user data inserted into HTML without escaping"
+      },
+      "languages": ["js"]
+    }
+  ]
+}

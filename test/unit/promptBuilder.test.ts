@@ -34,12 +34,14 @@ describe('язык советов', () => {
 });
 
 const TEMPLATE = parseTemplate(
-  '  Ты наставник.\n{{level}}\n- {{language}}\n\n## level: beginner\n\nНовичок.\n\n## language: ru\nПо-русски.\n## language: en\nIn English.\n',
+  '  Ты наставник.\n{{level}}\n- {{language}}\n{{patterns}}\n\n## level: beginner\n\nНовичок.\n\n## language: ru\nПо-русски.\n## language: en\nIn English.\n',
 );
+
+const PATTERNS = [{ id: 'off-by-one', title: { ru: 'на единицу', en: 'off by one' } }];
 
 test('файл промпта делится на инструкцию и разделы по видам', () => {
   expect(TEMPLATE).toEqual({
-    base: 'Ты наставник.\n{{level}}\n- {{language}}',
+    base: 'Ты наставник.\n{{level}}\n- {{language}}\n{{patterns}}',
     sections: {
       level: { beginner: 'Новичок.' },
       language: { ru: 'По-русски.', en: 'In English.' },
@@ -47,14 +49,15 @@ test('файл промпта делится на инструкцию и раз
   });
 });
 
-test('инструкция с уровнем и языком — в system, код в конце — в prompt', () => {
+test('инструкция с уровнем, языком и типами ошибок — в system, код в конце — в prompt', () => {
   const req = buildPrompt(TEMPLATE, {
     languageId: 'python',
     code: 'def f():\n    pass',
     level: 'beginner',
     language: 'en',
+    patterns: PATTERNS,
   });
-  expect(req.system).toBe('Ты наставник.\nНовичок.\n- In English.');
+  expect(req.system).toBe('Ты наставник.\nНовичок.\n- In English.\n- off-by-one — off by one');
   expect(req.prompt).toBe(
     'Язык программирования: python\n\n<code>\n1 | def f():\n2 |     pass\n</code>\n',
   );
@@ -63,7 +66,13 @@ test('инструкция с уровнем и языком — в system, ко
 
 test('без нужного раздела промпт не собирается', () => {
   expect(() =>
-    buildPrompt(TEMPLATE, { languageId: 'js', code: '', level: 'advanced', language: 'ru' }),
+    buildPrompt(TEMPLATE, {
+      languageId: 'js',
+      code: '',
+      level: 'advanced',
+      language: 'ru',
+      patterns: PATTERNS,
+    }),
   ).toThrow(/## level: advanced/);
 });
 
@@ -71,9 +80,16 @@ test(`prompts/${PROMPT_VERSION}.md собирается для всех уров
   const template = parseTemplate(readFileSync(`prompts/${PROMPT_VERSION}.md`, 'utf8'));
   for (const level of LEVELS) {
     for (const language of ADVICE_LANGUAGES) {
-      const { system } = buildPrompt(template, { languageId: 'js', code: '', level, language });
+      const { system } = buildPrompt(template, {
+        languageId: 'js',
+        code: '',
+        level,
+        language,
+        patterns: PATTERNS,
+      });
       expect(system).toContain(template.sections.level[level]);
       expect(system).toContain(template.sections.language[language]);
+      expect(system).toContain(`- off-by-one — ${PATTERNS[0].title[language]}`);
       expect(system).not.toMatch(/\{\{|^## /m);
     }
   }

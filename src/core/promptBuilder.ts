@@ -1,4 +1,5 @@
 import type { ModelRequest } from './engine';
+import { renderPatterns, type Pattern } from './patterns';
 import { reviewJsonSchema } from './reviewSchema';
 
 /** Версия промпта. Войдёт в ключ кэша: изменённый промпт — новый файл prompts/mentor.vN.md. */
@@ -22,9 +23,9 @@ export function resolveLanguage(setting: string | undefined, uiLanguage: string)
 }
 
 export interface PromptTemplate {
-  /** Инструкция с местами {{level}} и {{language}}. */
+  /** Инструкция с местами {{level}}, {{language}} и {{patterns}}. */
   base: string;
-  /** Варианты текста для этих мест: sections.level.beginner, sections.language.ru. */
+  /** Варианты текста для мест: sections.level.beginner, sections.language.ru. */
   sections: Record<string, Record<string, string>>;
 }
 
@@ -33,6 +34,8 @@ export interface PromptInput {
   code: string;
   level: Level;
   language: AdviceLanguage;
+  /** Типы ошибок для языка файла (patternsFor). */
+  patterns: Pattern[];
 }
 
 const SECTION_HEADING = /^## (\w+): (\S+)[ \t]*$/m;
@@ -53,10 +56,16 @@ export function numberLines(code: string): string {
   return lines.map((line, i) => `${String(i + 1).padStart(width)} | ${line}`).join('\n');
 }
 
-/** Стабильная часть (инструкция, уровень, язык) идёт в system, код — в конце: так работает кэширование у провайдера. */
+/**
+ * Стабильная часть (инструкция, уровень, язык, типы ошибок) идёт в system, код — в конце:
+ * так работает кэширование у провайдера.
+ */
 export function buildPrompt(template: PromptTemplate, input: PromptInput): ModelRequest {
   const chosen: Record<string, string> = { level: input.level, language: input.language };
   const system = template.base.replace(/\{\{(\w+)\}\}/g, (_, kind: string) => {
+    if (kind === 'patterns') {
+      return renderPatterns(input.patterns, input.language);
+    }
     const text = template.sections[kind]?.[chosen[kind]];
     if (text === undefined) {
       throw new Error(`в промпте ${PROMPT_VERSION} нет раздела «## ${kind}: ${chosen[kind]}»`);
