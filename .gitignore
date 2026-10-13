@@ -4,6 +4,8 @@ out/
 .vscode-test/
 *.vsix
 
-# Локальные ссылки на библиотеку скиллов и личные настройки Claude Code
-.claude/skills/
+# Локальные ссылки на библиотеку скиллов и личные настройки Claude Code.
+# Скиллы проекта добавлять исключениями.
+.claude/skills/*
+!.claude/skills/run-vscode/
 .claude/settings.local.json

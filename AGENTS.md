@@ -17,7 +17,8 @@ Adviser — расширение VS Code, ИИ-наставник для тех,
 - `npm run check-types` — tsc: сначала проект, потом отдельно `test/unit/`. Vitest выходит только как ESM, поэтому у юнит-тестов свой `tsconfig.json` с `module: Preserve`;
 - `npm run test:unit` — Vitest; один файл: `npx vitest run test/unit/<name>.test.ts`;
 - `npm run test:integration` — mocha внутри VS Code (`@vscode/test-cli`), тесты в `test/integration/`. Первый запуск скачивает VS Code в `.vscode-test/`;
-- `npm run compile` — сборка esbuild в `dist/extension.js`; запуск расширения — F5 (Extension Development Host).
+- `npm run compile` — сборка esbuild в `dist/extension.js`; запуск расширения — F5 (Extension Development Host);
+- живой прогон в VS Code без участия человека (F5, команды, скриншоты): `node .claude/skills/run-vscode/driver.mjs f5 "cmd …" "ss имя"`, подробности в `.claude/skills/run-vscode/SKILL.md`.
 
 CI (`.github/workflows/ci.yml`) гоняет линт, формат, типы и оба вида тестов. Сборку `.vsix` и оценку советов (promptfoo или скрипт в `evals/`) добавим позже.
 
