@@ -1,0 +1,3 @@
+# Тексты в Markdown автор форматирует сам
+*.md
+package-lock.json
