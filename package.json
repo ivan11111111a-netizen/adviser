@@ -60,5 +60,10 @@
   "overrides": {
     "diff": "^8.0.4",
     "serialize-javascript": "^7.0.6"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.68",
+    "ai": "^7.0.139",
+    "zod": "^4.6.7"
   }
 }
