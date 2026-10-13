@@ -1,0 +1,9 @@
+node_modules/
+dist/
+out/
+.vscode-test/
+*.vsix
+
+# Локальные ссылки на библиотеку скиллов и личные настройки Claude Code
+.claude/skills/
+.claude/settings.local.json
