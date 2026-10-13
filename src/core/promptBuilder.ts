@@ -8,30 +8,43 @@ export const PROMPT_VERSION = 'mentor.v1';
 export const LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
 export type Level = (typeof LEVELS)[number];
 
+/** Язык советов. В настройке есть ещё auto — по языку интерфейса VS Code. */
+export const ADVICE_LANGUAGES = ['ru', 'en'] as const;
+export type AdviceLanguage = (typeof ADVICE_LANGUAGES)[number];
+
+/** auto и неизвестные значения: русский интерфейс — советы по-русски, любой другой — по-английски. */
+export function resolveLanguage(setting: string | undefined, uiLanguage: string): AdviceLanguage {
+  const explicit = ADVICE_LANGUAGES.find((l) => l === setting);
+  if (explicit) {
+    return explicit;
+  }
+  return uiLanguage.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+}
+
 export interface PromptTemplate {
-  /** Инструкция с местом {{level}} для текста уровня. */
+  /** Инструкция с местами {{level}} и {{language}}. */
   base: string;
-  levels: Partial<Record<Level, string>>;
+  /** Варианты текста для этих мест: sections.level.beginner, sections.language.ru. */
+  sections: Record<string, Record<string, string>>;
 }
 
 export interface PromptInput {
   languageId: string;
   code: string;
   level: Level;
+  language: AdviceLanguage;
 }
 
-const LEVEL_HEADING = /^## level: (\S+)[ \t]*$/m;
+const SECTION_HEADING = /^## (\w+): (\S+)[ \t]*$/m;
 
-/** Файл промпта: до первого «## level: …» — инструкция, дальше — тексты уровней, по одному на заголовок. */
+/** Файл промпта: до первого «## вид: вариант» — инструкция, дальше — варианты, по одному на заголовок. */
 export function parseTemplate(text: string): PromptTemplate {
-  const [base, ...rest] = text.split(LEVEL_HEADING);
-  const levels: PromptTemplate['levels'] = {};
-  for (let i = 0; i + 1 < rest.length; i += 2) {
-    if ((LEVELS as readonly string[]).includes(rest[i])) {
-      levels[rest[i] as Level] = rest[i + 1].trim();
-    }
+  const [base, ...rest] = text.split(SECTION_HEADING);
+  const sections: PromptTemplate['sections'] = {};
+  for (let i = 0; i + 2 < rest.length; i += 3) {
+    (sections[rest[i]] ??= {})[rest[i + 1]] = rest[i + 2].trim();
   }
-  return { base: base.trim(), levels };
+  return { base: base.trim(), sections };
 }
 
 export function numberLines(code: string): string {
@@ -40,15 +53,19 @@ export function numberLines(code: string): string {
   return lines.map((line, i) => `${String(i + 1).padStart(width)} | ${line}`).join('\n');
 }
 
-/** Стабильная часть (инструкция и уровень) идёт в system, код — в конце, чтобы работало кэширование у провайдера. */
+/** Стабильная часть (инструкция, уровень, язык) идёт в system, код — в конце: так работает кэширование у провайдера. */
 export function buildPrompt(template: PromptTemplate, input: PromptInput): ModelRequest {
-  const level = template.levels[input.level];
-  if (level === undefined || !template.base.includes('{{level}}')) {
-    throw new Error(`в промпте ${PROMPT_VERSION} нет {{level}} или текста уровня ${input.level}`);
-  }
+  const chosen: Record<string, string> = { level: input.level, language: input.language };
+  const system = template.base.replace(/\{\{(\w+)\}\}/g, (_, kind: string) => {
+    const text = template.sections[kind]?.[chosen[kind]];
+    if (text === undefined) {
+      throw new Error(`в промпте ${PROMPT_VERSION} нет раздела «## ${kind}: ${chosen[kind]}»`);
+    }
+    return text;
+  });
   return {
-    system: template.base.replace('{{level}}', level),
-    prompt: `Язык: ${input.languageId}\n\n<code>\n${numberLines(input.code)}\n</code>\n`,
+    system,
+    prompt: `Язык программирования: ${input.languageId}\n\n<code>\n${numberLines(input.code)}\n</code>\n`,
     jsonSchema: reviewJsonSchema,
   };
 }

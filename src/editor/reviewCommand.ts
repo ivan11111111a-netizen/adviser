@@ -2,7 +2,13 @@ import * as vscode from 'vscode';
 import { createProvider } from '../config/provider';
 import { pickRange, toFileLines, type LineRange } from '../core/codeRange';
 import { runReview } from '../core/engine';
-import { buildPrompt, LEVELS, parseTemplate, PROMPT_VERSION } from '../core/promptBuilder';
+import {
+  buildPrompt,
+  LEVELS,
+  parseTemplate,
+  PROMPT_VERSION,
+  resolveLanguage,
+} from '../core/promptBuilder';
 import type { Findings } from './findings';
 import { documentSymbols } from './symbols';
 
@@ -40,11 +46,14 @@ export async function reviewFunction(
   const code = doc.getText(
     new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length),
   );
-  const setting = vscode.workspace.getConfiguration('adviser', doc.uri).get<string>('level');
-  const level = LEVELS.find((l) => l === setting) ?? 'beginner';
-  const request = buildPrompt(template, { languageId: doc.languageId, code, level });
+  const config = vscode.workspace.getConfiguration('adviser', doc.uri);
+  const level = LEVELS.find((l) => l === config.get<string>('level')) ?? 'beginner';
+  const language = resolveLanguage(config.get<string>('language'), vscode.env.language);
+  const request = buildPrompt(template, { languageId: doc.languageId, code, level, language });
 
-  log.info(`разбор ${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}, уровень ${level}`);
+  log.info(
+    `разбор ${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}, уровень ${level}, язык ${language}`,
+  );
   const result = await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Window, title: 'Adviser: разбираю…' },
     () => runReview(provider, request),

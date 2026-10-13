@@ -60,6 +60,21 @@
           "default": "beginner",
           "description": "Уровень учащегося: от него зависит, о чём Adviser говорит и о чём молчит."
         },
+        "adviser.language": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "ru",
+            "en"
+          ],
+          "enumDescriptions": [
+            "По языку интерфейса VS Code: русский интерфейс — советы по-русски, любой другой — по-английски.",
+            "По-русски.",
+            "По-английски."
+          ],
+          "default": "auto",
+          "description": "Язык советов."
+        },
         "adviser.provider": {
           "type": "string",
           "enum": [
