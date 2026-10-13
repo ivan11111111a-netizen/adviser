@@ -8,7 +8,7 @@ description: Запустить расширение Adviser в живом VS Co
 `driver.mjs` запускает отдельную копию VS Code из `.vscode-test/`. Профиль у неё чистый: `.vscode-test/driver/profile/` пересоздаётся на каждом прогоне. Драйвер открывает в ней этот проект, выполняет команды из аргументов по порядку и закрывает VS Code. Управляет окнами через Playwright по CDP. Профиль и VS Code пользователя он не трогает. Проверено на Windows; на Linux без дисплея нужен `xvfb-run -a`, но это не проверялось.
 
 ```powershell
-node .claude/skills/run-vscode/driver.mjs f5 "cmd Adviser: Проверить запуск" toasts "ss result"
+node .claude/skills/run-vscode/driver.mjs f5 "open test/fixtures/sample.js" "goto 3" "cmd Adviser: Разобрать эту функцию" "sleep 15000" "ss result"
 ```
 
 Каждый аргумент в кавычках — одна команда, её параметр идёт через пробел. Прогон занимает 20–30 с, всё это время на экране пользователя видны окна VS Code. При первом запуске и после выхода новой версии VS Code скачивается ~350 МБ.

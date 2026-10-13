@@ -16,24 +16,82 @@
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "contributes": {
     "commands": [
       {
-        "command": "adviser.hello",
-        "title": "Adviser: Проверить запуск"
+        "command": "adviser.reviewFunction",
+        "title": "Разобрать эту функцию",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.setApiKey",
+        "title": "Задать API-ключ",
+        "category": "Adviser"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "adviser.reviewFunction",
+          "group": "adviser"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Adviser",
+      "properties": {
+        "adviser.provider": {
+          "type": "string",
+          "enum": [
+            "openai-compatible",
+            "claude-code",
+            "mock"
+          ],
+          "enumDescriptions": [
+            "OpenRouter, Ollama (/v1), LM Studio и другие OpenAI-совместимые серверы.",
+            "Только для разработки Adviser: подписка Claude через Claude Code CLI. Работает только при запуске из исходников (F5).",
+            "Только для разработки и тестов: заготовленный ответ без модели."
+          ],
+          "default": "openai-compatible",
+          "scope": "machine",
+          "description": "Кто разбирает код. Берётся только из настроек пользователя, не из настроек проекта."
+        },
+        "adviser.baseUrl": {
+          "type": "string",
+          "default": "https://openrouter.ai/api/v1",
+          "scope": "machine",
+          "markdownDescription": "Адрес OpenAI-совместимого сервера. Для Ollama — `http://localhost:11434/v1`; в WSL и по SSH `localhost` указывает на другую машину."
+        },
+        "adviser.model": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Модель. Для OpenRouter — id модели, бесплатные с суффиксом `:free`. Для `claude-code` по умолчанию `sonnet`."
+        },
+        "adviser.dev.claudePath": {
+          "type": "string",
+          "default": "claude",
+          "scope": "machine",
+          "description": "Только для разработки: путь к Claude Code CLI для провайдера claude-code."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "watch:tsc": "tsc --watch --project tsconfig.json",
     "package": "npm run check-types && npm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "check-types": "tsc --noEmit && tsc -p test/unit",
+    "compile-tests": "tsc -p test/integration",
+    "watch-tests": "tsc -p test/integration -w",
+    "check-types": "tsc -p . && tsc -p test/unit && tsc -p test/integration --noEmit",
     "lint": "eslint src test --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

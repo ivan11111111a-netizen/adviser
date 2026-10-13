@@ -1,11 +1,4 @@
 {
-  // Vitest — только ESM, а основной tsconfig — CommonJS (Node16) для расширения
-  // и интеграционных тестов. Юнит-тесты проверяем отдельно, сборщик их не трогает.
   "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "module": "Preserve",
-    "types": ["node"],
-    "noEmit": true
-  },
   "include": [".", "../../vitest.config.mts"]
 }

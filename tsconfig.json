@@ -1,12 +1,14 @@
 {
+  // src собирает esbuild, поэтому типы проверяем по правилам бандлера: ESM-only пакеты (ai, vitest) так импортируются.
+  // Интеграционные тесты tsc компилирует в CommonJS для mocha — у них свой test/integration/tsconfig.json.
   "compilerOptions": {
-    "module": "Node16",
+    "module": "Preserve",
     "target": "ES2022",
     "lib": ["ES2022"],
-    "types": ["node", "mocha"],
-    "sourceMap": true,
-    "rootDir": ".",
-    "strict": true
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "include": ["src", "test/integration"]
+  "include": ["src"]
 }

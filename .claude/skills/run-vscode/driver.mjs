@@ -1,6 +1,6 @@
 // Драйвер живого VS Code для агентов: запускает изолированную копию VS Code с этим проектом,
 // выполняет команды из аргументов по порядку, закрывает её. Описание команд — в SKILL.md.
-//   node .claude/skills/run-vscode/driver.mjs f5 "cmd Adviser: Проверить запуск" "ss result"
+//   node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "ss editor"
 import { chromium } from 'playwright-core';
 import { downloadAndUnzipVSCode } from '@vscode/test-electron';
 import { spawn, execSync } from 'node:child_process';

@@ -1,0 +1,13 @@
+{
+  // mocha внутри VS Code грузит тесты через require, поэтому здесь CommonJS и настоящий вывод в out/.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "types": ["node", "mocha"],
+    "sourceMap": true,
+    "noEmit": false,
+    "rootDir": "../..",
+    "outDir": "../../out"
+  },
+  "include": ["."]
+}
