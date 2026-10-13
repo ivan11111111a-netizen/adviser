@@ -45,10 +45,10 @@ export class Findings implements vscode.Disposable {
     this.diagnostics.set(uri, all.map(toDiagnostic));
   }
 
-  /** В порядке начала подчёркиваний — так же VS Code перечисляет их тексты в hover. */
+  /** Замечания, текст которых VS Code покажет в hover в этой точке, в том же порядке, что и он. */
   at(uri: vscode.Uri, position: vscode.Position): Finding[] {
     return (this.byUri.get(uri.toString()) ?? [])
-      .filter((f) => f.range.contains(position))
+      .filter((f) => hoverRange(f).contains(position))
       .sort((a, b) => a.range.start.compareTo(b.range.start));
   }
 
@@ -67,6 +67,16 @@ export class Findings implements vscode.Disposable {
   dispose() {
     this.diagnostics.dispose();
   }
+}
+
+/**
+ * Hint (это suggestion) VS Code рисует точками под первыми двумя символами и только там показывает
+ * его текст. Кнопки без текста намёка непонятно к чему относятся, поэтому и hover — только там.
+ */
+function hoverRange({ range, issue }: Finding) {
+  return issue.severity === 'suggestion'
+    ? new vscode.Range(range.start, range.start.translate(0, 2))
+    : range;
 }
 
 function toDiagnostic({ range, issue }: Finding) {

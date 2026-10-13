@@ -38,18 +38,20 @@ suite('Разбор функции', () => {
 
     await vscode.commands.executeCommand('adviser.reviewFunction');
 
-    // В mock-ответе замечание на строке 2 функции, функция начинается со строки 0 файла.
-    const [diagnostic, ...rest] = vscode.languages.getDiagnostics(doc.uri);
+    // В mock-ответе warning на строке 2 функции и suggestion на всю функцию; функция с 0-й строки файла.
+    const [diagnostic, suggestion, ...rest] = vscode.languages.getDiagnostics(doc.uri);
     assert.strictEqual(rest.length, 0);
+    assert.strictEqual(suggestion.severity, vscode.DiagnosticSeverity.Hint);
     assert.strictEqual(diagnostic.source, 'Adviser');
     assert.strictEqual(diagnostic.range.start.line, 1);
     assert.strictEqual(diagnostic.range.start.character, 2);
     assert.strictEqual(diagnostic.severity, vscode.DiagnosticSeverity.Information);
     assert.match(diagnostic.message, /Mock-намёк/);
 
+    // Внутри suggestion, но дальше двух первых символов: VS Code его текст здесь не покажет, и мы тоже.
     const at = new vscode.Position(1, 5);
     let text = await hoverText(doc.uri, at);
-    assert.doesNotMatch(text, /Mock-объяснение|исправленный код/);
+    assert.doesNotMatch(text, /Mock-объяснение|исправленный код|«/);
 
     await click(text, 'Объяснить');
     text = await hoverText(doc.uri, at);
@@ -60,6 +62,11 @@ suite('Разбор функции', () => {
     text = await hoverText(doc.uri, at);
     assert.match(text, /Mock-объяснение/);
     assert.match(text, /исправленный код/);
-    assert.doesNotMatch(text, /\[Объяснить\]|\[Показать решение\]/);
+    assert.doesNotMatch(text, /\[Объяснить\]|\[Показать решение\]|совета/);
+
+    const dots = new vscode.Position(0, 1);
+    text = await hoverText(doc.uri, dots);
+    await click(text, 'Объяснить');
+    assert.match(await hoverText(doc.uri, dots), /Mock-объяснение совета/);
   });
 });
