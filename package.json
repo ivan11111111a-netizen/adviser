@@ -45,6 +45,21 @@
     "configuration": {
       "title": "Adviser",
       "properties": {
+        "adviser.level": {
+          "type": "string",
+          "enum": [
+            "beginner",
+            "intermediate",
+            "advanced"
+          ],
+          "enumDescriptions": [
+            "Новичок: логика, крайние случаи, обработка ошибок, именование. Без архитектуры и производительности.",
+            "Средний: плюс структура функций, дубли и типы. Без крупной архитектуры.",
+            "Продвинутый: всё, включая производительность и архитектуру."
+          ],
+          "default": "beginner",
+          "description": "Уровень учащегося: от него зависит, о чём Adviser говорит и о чём молчит."
+        },
         "adviser.provider": {
           "type": "string",
           "enum": [
