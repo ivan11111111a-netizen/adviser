@@ -17,7 +17,12 @@ export class InvalidResponseError extends Error {}
 export const MIN_CONFIDENCE = 0.5;
 export const MAX_ISSUES = 3;
 
-export type ReviewResult = { ok: true; review: Review } | { ok: false; error: string };
+/**
+ * invalid — модель дважды ответила не по схеме: повторять тот же код бесполезно.
+ * Иначе ошибка сети или провайдера (429, таймаут) — её стоит повторить позже.
+ */
+export type ReviewResult =
+  { ok: true; review: Review } | { ok: false; error: string; invalid: boolean };
 
 export async function runReview(
   provider: Provider,
@@ -31,7 +36,7 @@ export async function runReview(
       raw = await provider.complete(request, signal);
     } catch (e) {
       if (!(e instanceof InvalidResponseError)) {
-        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+        return { ok: false, error: e instanceof Error ? e.message : String(e), invalid: false };
       }
       lastError = e.message;
       continue;
@@ -42,7 +47,11 @@ export async function runReview(
     }
     lastError = parsed.error.message;
   }
-  return { ok: false, error: `ответ модели дважды не прошёл проверку схемы: ${lastError}` };
+  return {
+    ok: false,
+    error: `ответ модели дважды не прошёл проверку схемы: ${lastError}`,
+    invalid: true,
+  };
 }
 
 /** Порог уверенности и не больше MAX_ISSUES замечаний: сначала серьёзные, потом уверенные. */

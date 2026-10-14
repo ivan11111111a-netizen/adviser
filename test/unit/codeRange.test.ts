@@ -1,11 +1,44 @@
 import { describe, expect, test } from 'vitest';
-import { pickRange, SymbolKind, toFileLines, type SymbolNode } from '../../src/core/codeRange';
+import {
+  functionsOf,
+  pickRange,
+  SymbolKind,
+  toFileLines,
+  type SymbolNode,
+} from '../../src/core/codeRange';
 
-const sym = (kind: number, start: number, end: number, children: SymbolNode[] = []) => ({
-  kind,
-  start,
-  end,
-  children,
+const sym = (
+  kind: number,
+  start: number,
+  end: number,
+  children: SymbolNode[] = [],
+  name = 'f',
+) => ({ name, kind, start, end, children });
+
+describe('functionsOf', () => {
+  test('методы классов — отдельные функции, вложенные — часть своей, ключ — путь имён', () => {
+    const tree = [
+      sym(SymbolKind.Function, 0, 5, [sym(SymbolKind.Function, 1, 3, [], 'inner')], 'total'),
+      sym(
+        SymbolKind.Class,
+        6,
+        20,
+        [
+          sym(SymbolKind.Variable, 7, 7, [], 'items'),
+          sym(SymbolKind.Method, 8, 12, [], 'add'),
+          sym(SymbolKind.Method, 13, 19, [], 'add'),
+        ],
+        'Cart',
+      ),
+      sym(SymbolKind.Constant, 21, 24, [], 'format'),
+    ];
+    expect(functionsOf(tree)).toEqual([
+      { key: 'total', start: 0, end: 5 },
+      { key: 'Cart.add', start: 8, end: 12 },
+      { key: 'Cart.add#2', start: 13, end: 19 },
+      { key: 'format', start: 21, end: 24 },
+    ]);
+  });
 });
 
 describe('pickRange', () => {

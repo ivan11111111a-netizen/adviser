@@ -49,13 +49,17 @@ describe('runReview', () => {
   test('после второго невалидного ответа — ошибка без третьей попытки', async () => {
     const p = scripted({ summary: 1 }, { issues: 'нет' }, mockReview);
     const result = await runReview(p, request);
-    expect(result.ok).toBe(false);
+    expect(!result.ok && result.invalid).toBe(true);
     expect(p.calls).toBe(2);
   });
 
   test('ошибка сети не повторяется движком', async () => {
     const p = scripted(new Error('429 Too Many Requests'), mockReview);
-    expect(await runReview(p, request)).toEqual({ ok: false, error: '429 Too Many Requests' });
+    expect(await runReview(p, request)).toEqual({
+      ok: false,
+      error: '429 Too Many Requests',
+      invalid: false,
+    });
     expect(p.calls).toBe(1);
   });
 

@@ -12,6 +12,7 @@ export async function documentSymbols(uri: vscode.Uri): Promise<SymbolNode[]> {
 function toNode(s: vscode.DocumentSymbol | vscode.SymbolInformation): SymbolNode {
   const range = 'children' in s ? s.range : s.location.range;
   return {
+    name: s.name,
     kind: s.kind,
     start: range.start.line,
     end: range.end.line,
