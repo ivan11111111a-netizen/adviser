@@ -6,41 +6,57 @@ import { createOpenAICompatibleProvider } from '../providers/openaiCompatible';
 
 export const API_KEY_SECRET = 'adviser.apiKey';
 
+export interface ConfiguredProvider {
+  provider: Provider;
+  /** Провайдер, адрес и модель: часть ключа кэша. */
+  id: string;
+}
+
 /**
  * Собирает провайдер по настройкам. Провайдер, адрес и модель объявлены со scope "machine":
  * VS Code не берёт их из настроек репозитория, иначе чужой проект мог бы увести код и ключ.
  * Возвращает строку, если собрать нельзя, — её показываем пользователю.
  */
-export async function createProvider(context: vscode.ExtensionContext): Promise<Provider | string> {
+export async function createProvider(
+  context: vscode.ExtensionContext,
+): Promise<ConfiguredProvider | string> {
   const config = vscode.workspace.getConfiguration('adviser');
   const kind = config.get<string>('provider', 'openai-compatible');
   const model = config.get<string>('model', '').trim();
   const fromSources = context.extensionMode !== vscode.ExtensionMode.Production;
 
   switch (kind) {
-    case 'openai-compatible':
+    case 'openai-compatible': {
       if (!model) {
         return 'укажи модель в настройке adviser.model';
       }
-      return createOpenAICompatibleProvider({
-        baseURL: config.get<string>('baseUrl', 'https://openrouter.ai/api/v1'),
-        apiKey: await context.secrets.get(API_KEY_SECRET),
-        model,
-      });
+      const baseURL = config.get<string>('baseUrl', 'https://openrouter.ai/api/v1');
+      return {
+        id: `${kind} ${baseURL} ${model}`,
+        provider: createOpenAICompatibleProvider({
+          baseURL,
+          apiKey: await context.secrets.get(API_KEY_SECRET),
+          model,
+        }),
+      };
+    }
     case 'claude-code':
       // Подписку Claude можно использовать только как разработчик: правила Anthropic.
       if (!fromSources) {
         return 'провайдер claude-code работает только при запуске из исходников (F5)';
       }
-      return createClaudeCodeProvider({
-        executable: resolveClaudeExecutable(config.get<string>('dev.claudePath', 'claude')),
-        model: model || 'sonnet',
-      });
+      return {
+        id: `${kind} ${model || 'sonnet'}`,
+        provider: createClaudeCodeProvider({
+          executable: resolveClaudeExecutable(config.get<string>('dev.claudePath', 'claude')),
+          model: model || 'sonnet',
+        }),
+      };
     case 'mock':
       if (!fromSources) {
         return 'провайдер mock работает только при запуске из исходников и в тестах';
       }
-      return mockProvider;
+      return { id: kind, provider: mockProvider };
     default:
       return `неизвестный провайдер «${kind}» в adviser.provider`;
   }

@@ -14,7 +14,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "capabilities": {
     "untrustedWorkspaces": {
@@ -32,6 +34,11 @@
         "command": "adviser.setApiKey",
         "title": "Задать API-ключ",
         "category": "Adviser"
+      },
+      {
+        "command": "adviser.showMenu",
+        "title": "Режим и «Не беспокоить»",
+        "category": "Adviser"
       }
     ],
     "menus": {
@@ -45,6 +52,19 @@
     "configuration": {
       "title": "Adviser",
       "properties": {
+        "adviser.mode": {
+          "type": "string",
+          "enum": [
+            "mentor",
+            "manual"
+          ],
+          "enumDescriptions": [
+            "Наставник: сам разбирает изменённые функции при сохранении, уходе из функции и после паузы 30 с. Не чаще 20 разборов в час.",
+            "Вручную: только по команде «Разобрать эту функцию»."
+          ],
+          "default": "mentor",
+          "description": "Когда Adviser разбирает код. Переключается и по клику на Adviser в статус-баре."
+        },
         "adviser.level": {
           "type": "string",
           "enum": [

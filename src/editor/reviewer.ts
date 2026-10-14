@@ -1,0 +1,133 @@
+import * as vscode from 'vscode';
+import { createProvider } from '../config/provider';
+import { cacheKey, LruCache } from '../core/cache';
+import { toFileLines, type LineRange } from '../core/codeRange';
+import { runReview } from '../core/engine';
+import { normalizePatternIds, parsePatterns, patternsFor } from '../core/patterns';
+import {
+  buildPrompt,
+  LEVELS,
+  parseTemplate,
+  PROMPT_VERSION,
+  resolveLanguage,
+} from '../core/promptBuilder';
+import type { Issue, Review } from '../core/reviewSchema';
+import { isEnvFile } from '../core/scheduler';
+import type { Findings } from './findings';
+
+export type Outcome =
+  | { kind: 'reviewed'; review: Review; cached: boolean }
+  /** Разбирать нельзя: провайдер не настроен или файл не отправляется. message — для статус-бара. */
+  | { kind: 'refused'; message: string }
+  | { kind: 'failed'; error: string; invalid: boolean }
+  /** Код изменился, пока шёл разбор. */
+  | { kind: 'aborted' };
+
+/** Разбор строк документа: промпт, кэш, модель, проверка ответа. Общий для команды и автопилота. */
+export class Reviewer {
+  private readonly cache = new LruCache<Review>(200);
+
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly log: vscode.LogOutputChannel,
+  ) {}
+
+  async review(
+    doc: vscode.TextDocument,
+    range: LineRange,
+    source: string,
+    signal?: AbortSignal,
+  ): Promise<Outcome> {
+    // Код берём до первого await: правка после этого отменит разбор через signal.
+    const code = doc.getText(
+      new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length),
+    );
+    if (isEnvFile(doc.uri.fsPath)) {
+      return { kind: 'refused', message: 'файлы .env* не отправляются' };
+    }
+    const configured = await createProvider(this.context);
+    if (typeof configured === 'string') {
+      return { kind: 'refused', message: configured };
+    }
+
+    // Читаем при каждом разборе: в F5 правка промпта видна без перезапуска.
+    const template = parseTemplate(await this.readBundled('prompts', `${PROMPT_VERSION}.md`));
+    const patterns = parsePatterns(JSON.parse(await this.readBundled('patterns', 'patterns.json')));
+    const config = vscode.workspace.getConfiguration('adviser', doc.uri);
+    const level = LEVELS.find((l) => l === config.get<string>('level')) ?? 'beginner';
+    const language = resolveLanguage(config.get<string>('language'), vscode.env.language);
+    const request = buildPrompt(template, {
+      languageId: doc.languageId,
+      code,
+      level,
+      language,
+      patterns: patternsFor(patterns, doc.languageId),
+    });
+
+    const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;
+    const key = cacheKey(configured.id, request.system, request.prompt);
+    const cached = this.cache.get(key);
+    if (cached) {
+      this.log.info(`${source}: ${where} — ответ из кэша`);
+      return signal?.aborted
+        ? { kind: 'aborted' }
+        : { kind: 'reviewed', review: cached, cached: true };
+    }
+
+    this.log.info(`${source}: разбор ${where}, уровень ${level}, язык ${language}`);
+    const result = await runReview(configured.provider, request, signal);
+    if (signal?.aborted) {
+      this.log.info(`${where}: код изменился, разбор отменён`);
+      return { kind: 'aborted' };
+    }
+    if (!result.ok) {
+      this.log.warn(result.error);
+      return { kind: 'failed', error: result.error, invalid: result.invalid };
+    }
+
+    const { review, unknown } = normalizePatternIds(result.review, patterns);
+    if (unknown.length) {
+      // Повод дополнить patterns/patterns.json.
+      this.log.info(`patternId не из списка, записаны как other: ${unknown.join(', ')}`);
+    }
+    const { issues, summary } = review;
+    this.log.info(
+      `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')})`,
+    );
+    this.cache.set(key, review);
+    return { kind: 'reviewed', review, cached: false };
+  }
+
+  /** Файл из папки расширения: промпты и patterns.json едут внутри .vsix. */
+  private async readBundled(...path: string[]) {
+    return new TextDecoder().decode(
+      await vscode.workspace.fs.readFile(vscode.Uri.joinPath(this.context.extensionUri, ...path)),
+    );
+  }
+}
+
+/** Замечания разобранного диапазона — в подчёркивания и hover; прежние в этом диапазоне уходят. */
+export function showReview(
+  findings: Findings,
+  doc: vscode.TextDocument,
+  range: LineRange,
+  issues: Issue[],
+) {
+  findings.replace(
+    doc.uri,
+    range,
+    issues.map((issue) => {
+      const lines = toFileLines(issue, range);
+      return {
+        issue,
+        languageId: doc.languageId,
+        range: new vscode.Range(
+          lines.start,
+          doc.lineAt(lines.start).firstNonWhitespaceCharacterIndex,
+          lines.end,
+          doc.lineAt(lines.end).text.length,
+        ),
+      };
+    }),
+  );
+}
