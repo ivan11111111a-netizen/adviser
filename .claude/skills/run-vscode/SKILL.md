@@ -36,6 +36,8 @@ node .claude/skills/run-vscode/driver.mjs "setting adviser.provider=claude-code"
 
 Ступени в hover: после разбора `"goto 9" "press End" "cmd Show or Focus Hover" "click Показать решение" "text .monaco-hover"`. `goto` ставит курсор в колонку 1, а подчёркивание начинается с первого непробельного символа, поэтому нужен `press End`. Модель от прогона к прогону отвечает по-разному: у `critical` кнопки «Объяснить» нет, и `click Объяснить` на такой строке упадёт.
 
+Автопилот (режим «Наставник» по умолчанию) сам разбирает функцию, когда курсор уходит из изменённой функции или файл сохранён вручную. Так его и проверять: `"goto 10" "press End" "press Enter" "type console.log(x);" "goto 4" "sleep 20000" "ss auto"`. Если нужна только команда, а подписку тратить лишний раз не хочется, — `"setting adviser.mode=manual"`. Тестовые правки в `test/fixtures/` не сохранять (`Control+S`), иначе они попадут в репозиторий.
+
 Лог расширения — `.vscode-test/driver/profile/logs/*/window2/exthost/undefined_publisher.adviser/Adviser.log`.
 
 При ошибке драйвер делает `error.png`, печатает причину, закрывает VS Code и выходит с кодом 1.
