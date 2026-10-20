@@ -64,13 +64,14 @@ export function mergeJournals(a: JournalEntry[], b: JournalEntry[]): JournalEntr
  * Новые замечания функции против прежних. Тот же тип ошибки — тот же случай: он сохраняет id
  * и открытую ступень. Прежние без пары исчезли — их считаем исправленными.
  */
-export function matchByPattern<T extends { patternId: string }>(
+export function matchByPattern<T>(
   previous: T[],
   fresh: string[],
+  patternOf: (t: T) => string,
 ): { matched: (T | undefined)[]; resolved: T[] } {
   const left = [...previous];
   const matched = fresh.map((patternId) => {
-    const i = left.findIndex((p) => p.patternId === patternId);
+    const i = left.findIndex((p) => patternOf(p) === patternId);
     return i < 0 ? undefined : left.splice(i, 1)[0];
   });
   return { matched, resolved: left };

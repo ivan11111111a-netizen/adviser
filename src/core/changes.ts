@@ -56,6 +56,27 @@ export function shiftRange(range: LineRange, edits: LineEdit[]): LineRange | und
   return { start, end };
 }
 
+/**
+ * Строки замечания после правок: правки выше сдвигают их, правки внутри растягивают или сжимают.
+ * Замечание остаётся на своём коде, пока функцию не разберут заново.
+ */
+export function trackRange(range: LineRange, edits: LineEdit[]): LineRange {
+  let { start, end } = range;
+  for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
+    const delta = edit.newLines - (edit.end - edit.start + 1);
+    if (edit.end < start) {
+      start += delta;
+      end += delta;
+    } else if (edit.start <= end) {
+      // Правка задела замечание: его конец едет вместе с концом правки,
+      // а если правка началась выше — замечание начинается с неё.
+      end = edit.end <= end ? end + delta : edit.start + edit.newLines - 1;
+      start = Math.min(start, edit.start);
+    }
+  }
+  return { start, end: Math.max(start, end) };
+}
+
 interface Known {
   fingerprint: string;
   reviewedAt?: number;

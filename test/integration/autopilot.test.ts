@@ -69,19 +69,22 @@ suite('Автопилот', () => {
     await editor.edit((e) => e.insert(new vscode.Position(1, 0), '  // первый элемент\n'));
     await save();
     await sleep(1500);
-    assert.deepStrictEqual(adviserLines(doc.uri), [4, 5], 'правка только в комментарии');
+    // Замечания b едут вместе с текстом.
+    assert.deepStrictEqual(adviserLines(doc.uri), [5, 6], 'правка только в комментарии');
 
     await config().update('mode', 'manual', vscode.ConfigurationTarget.Global);
     await editor.edit((e) => e.insert(new vscode.Position(2, 0), '  items.sort();\n'));
     await save();
     await sleep(1500);
-    assert.deepStrictEqual(adviserLines(doc.uri), [4, 5], 'режим «Вручную»');
+    assert.deepStrictEqual(adviserLines(doc.uri), [6, 7], 'режим «Вручную»');
 
     // Снова «Наставник»: изменённая функция a ждала и разбирается при следующем сохранении.
     await config().update('mode', 'mentor', vscode.ConfigurationTarget.Global);
     await editor.edit((e) => e.insert(new vscode.Position(3, 0), '  // конец\n'));
     await save();
     await waitFor(() => (adviserLines(doc.uri).includes(0) ? true : undefined));
+    // У a свои замечания, замечания b на месте: разбор a не принял их за свои.
+    assert.deepStrictEqual(adviserLines(doc.uri), [0, 1, 7, 8]);
   });
 
   test('файл перечитан с диска (git checkout) — это не правки человека', async () => {

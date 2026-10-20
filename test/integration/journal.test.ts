@@ -1,0 +1,87 @@
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import { click, hoverText } from './helpers';
+
+/**
+ * Часть TestApi из src/extension.ts. Импортировать его нельзя: тесты компилируются в CommonJS,
+ * а src тянет за собой ai, который выходит только как ESM.
+ */
+interface Entry {
+  id: string;
+  patternId: string;
+  step: number;
+  file: string;
+  line: number;
+  resolvedAt?: number;
+}
+interface TestApi {
+  journal: { all(): readonly Entry[]; get(id: string): Entry | undefined };
+}
+
+/** Разбор командой новой безымянной функции; mock даёт empty-collection на строке 2 и unclear-name. */
+async function reviewNew(content = 'function first(items) {\n  return items[0].price;\n}\n') {
+  const doc = await vscode.workspace.openTextDocument({ language: 'javascript', content });
+  const editor = await vscode.window.showTextDocument(doc);
+  editor.selection = new vscode.Selection(1, 2, 1, 2);
+  await vscode.commands.executeCommand('adviser.reviewFunction');
+  return { doc, editor };
+}
+
+suite('Журнал ошибок', () => {
+  const config = () => vscode.workspace.getConfiguration('adviser');
+  let api: TestApi;
+
+  suiteSetup(async () => {
+    await config().update('provider', 'mock', vscode.ConfigurationTarget.Global);
+    // Только команда: автопилот здесь не нужен.
+    await config().update('mode', 'manual', vscode.ConfigurationTarget.Global);
+    api = (await vscode.extensions
+      .getExtension('undefined_publisher.adviser')!
+      .activate()) as TestApi;
+  });
+
+  suiteTeardown(async () => {
+    await config().update('mode', undefined, vscode.ConfigurationTarget.Global);
+  });
+
+  test('случай записывается, ступень растёт, повторный разбор продолжает случай, исправленный закрывается', async () => {
+    const before = api.journal.all().length;
+    const { doc, editor } = await reviewNew();
+    const added = api.journal.all().slice(before);
+    assert.deepStrictEqual(
+      added.map((e) => [e.patternId, e.step, e.file, e.line]),
+      [
+        ['empty-collection', 1, doc.uri.toString(), 1],
+        ['unclear-name', 1, doc.uri.toString(), 0],
+      ],
+    );
+
+    const at = new vscode.Position(1, 5);
+    await click(await hoverText(doc.uri, at), 'Объяснить');
+    assert.strictEqual(api.journal.get(added[0].id)?.step, 2);
+
+    // Тот же код ещё раз: те же случаи, открытая ступень сохраняется.
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    assert.strictEqual(api.journal.all().length, before + 2);
+    assert.match(await hoverText(doc.uri, at), /Mock-объяснение/);
+
+    // Код исправлен: mock больше не находит ошибок — случаи закрыты.
+    await editor.edit((e) => e.insert(new vscode.Position(1, 0), '  // mock: clean\n'));
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    assert.ok(added.every((e) => api.journal.get(e.id)?.resolvedAt !== undefined));
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+  });
+
+  test('в третий раз за неделю hover напоминает о повторе и ведёт к прошлому случаю', async () => {
+    await reviewNew();
+    const { doc: previous } = await reviewNew();
+    const { doc } = await reviewNew();
+
+    const text = await hoverText(doc.uri, new vscode.Position(1, 5));
+    assert.match(text, /Ты так уже делал \d+ раза? на этой неделе/);
+    await click(text, 'Прошлый случай');
+    const editor = vscode.window.activeTextEditor!;
+    assert.strictEqual(editor.document.uri.toString(), previous.uri.toString());
+    assert.strictEqual(editor.selection.active.line, 1);
+  });
+});

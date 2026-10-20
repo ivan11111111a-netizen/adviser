@@ -1,7 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { LineRange } from '../core/codeRange';
 import { diagnosticText, firstStep, reveal, type Step } from '../core/disclosure';
+import { trackRange } from '../core/changes';
+import { matchByPattern } from '../core/journal';
 import type { Issue, Severity } from '../core/reviewSchema';
+import { lineEdits } from './edits';
+import type { Journal } from './journal';
 
 export interface NewFinding {
   range: vscode.Range;
@@ -10,7 +15,7 @@ export interface NewFinding {
 }
 
 export interface Finding extends NewFinding {
-  /** По нему кнопки в hover находят замечание. После нового разбора старые id не находятся. */
+  /** Он же id случая в журнале. По нему кнопки в hover находят замечание. */
   id: string;
   uri: vscode.Uri;
   step: Step;
@@ -27,22 +32,50 @@ const SEVERITY: Record<Severity, vscode.DiagnosticSeverity> = {
 export class Findings implements vscode.Disposable {
   private readonly diagnostics = vscode.languages.createDiagnosticCollection('adviser');
   private readonly byUri = new Map<string, Finding[]>();
-  private nextId = 1;
+  private readonly subscription = vscode.workspace.onDidChangeTextDocument((e) => this.edited(e));
 
-  /** Заменяет замечания в разобранном диапазоне, замечания по другим функциям файла остаются. */
+  constructor(private readonly journal: Journal) {}
+
+  /**
+   * Заменяет замечания в разобранном диапазоне, замечания по другим функциям файла остаются.
+   * Тот же тип ошибки в том же диапазоне — тот же случай: сохраняет id и открытую ступень.
+   * Прежние замечания, которых в новом разборе нет, журнал считает исправленными.
+   */
   replace(uri: vscode.Uri, reviewed: LineRange, findings: NewFinding[]) {
-    const kept = (this.byUri.get(uri.toString()) ?? []).filter(
-      (f) => f.range.end.line < reviewed.start || f.range.start.line > reviewed.end,
+    const all = this.byUri.get(uri.toString()) ?? [];
+    const outside = (f: Finding) =>
+      f.range.end.line < reviewed.start || f.range.start.line > reviewed.end;
+    const { matched, resolved } = matchByPattern(
+      all.filter((f) => !outside(f)),
+      findings.map((f) => f.issue.patternId),
+      (f) => f.issue.patternId,
     );
-    const added = findings.map((f) => ({
-      ...f,
-      uri,
-      id: String(this.nextId++),
-      step: firstStep(f.issue.severity),
-    }));
-    const all = [...kept, ...added];
-    this.byUri.set(uri.toString(), all);
-    this.diagnostics.set(uri, all.map(toDiagnostic));
+    const now = Date.now();
+    const added = findings.map((f, i): Finding => {
+      const before = matched[i];
+      const step = reveal(before?.step ?? 1, firstStep(f.issue.severity));
+      const finding = { ...f, uri, id: before?.id ?? randomUUID(), step };
+      if (!before) {
+        this.journal.record({
+          id: finding.id,
+          patternId: f.issue.patternId,
+          severity: f.issue.severity,
+          languageId: f.languageId,
+          file: uri.toString(),
+          line: f.range.start.line,
+          text: diagnosticText(f.issue),
+          at: now,
+          step,
+        });
+      }
+      return finding;
+    });
+    for (const f of resolved) {
+      this.journal.update(f.id, { resolvedAt: now });
+    }
+    const next = [...all.filter(outside), ...added];
+    this.byUri.set(uri.toString(), next);
+    this.diagnostics.set(uri, next.map(toDiagnostic));
   }
 
   /** Замечания, текст которых VS Code покажет в hover в этой точке, в том же порядке, что и он. */
@@ -58,6 +91,7 @@ export class Findings implements vscode.Disposable {
       const finding = list.find((f) => f.id === id);
       if (finding) {
         finding.step = reveal(finding.step, step);
+        this.journal.update(id, { step: finding.step });
         return finding;
       }
     }
@@ -65,7 +99,40 @@ export class Findings implements vscode.Disposable {
   }
 
   dispose() {
+    this.subscription.dispose();
     this.diagnostics.dispose();
+  }
+
+  /**
+   * Замечания едут вместе с текстом. Иначе после правок выше функции новый разбор
+   * принял бы чужие замечания за свои, а hover искал бы их не на тех строках.
+   */
+  private edited(e: vscode.TextDocumentChangeEvent) {
+    const list = this.byUri.get(e.document.uri.toString());
+    if (!list?.length || !e.contentChanges.length) {
+      return;
+    }
+    const doc = e.document;
+    const edits = lineEdits(e);
+    let moved = false;
+    for (const f of list) {
+      const lines = trackRange({ start: f.range.start.line, end: f.range.end.line }, edits);
+      if (lines.start === f.range.start.line && lines.end === f.range.end.line) {
+        continue;
+      }
+      const start = Math.min(lines.start, doc.lineCount - 1);
+      const end = Math.min(lines.end, doc.lineCount - 1);
+      f.range = new vscode.Range(
+        start,
+        doc.lineAt(start).firstNonWhitespaceCharacterIndex,
+        end,
+        doc.lineAt(end).text.length,
+      );
+      moved = true;
+    }
+    if (moved) {
+      this.diagnostics.set(doc.uri, list.map(toDiagnostic));
+    }
   }
 }
 

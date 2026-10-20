@@ -6,7 +6,8 @@ export const mockReview: Review = {
   summary: 'Mock: два замечания для проверки интерфейса.',
   issues: [
     {
-      patternId: 'mock',
+      // Типы — настоящие из patterns.json: так через mock проверяются и повторы в журнале.
+      patternId: 'empty-collection',
       category: 'edge-case',
       severity: 'warning',
       confidence: 1,
@@ -18,7 +19,7 @@ export const mockReview: Review = {
     },
     {
       // На всю функцию: suggestion — это Hint, VS Code показывает его только у первых символов.
-      patternId: 'mock-suggestion',
+      patternId: 'unclear-name',
       category: 'readability',
       severity: 'suggestion',
       confidence: 1,
@@ -31,6 +32,12 @@ export const mockReview: Review = {
   ],
 };
 
+/** Код с этой меткой mock считает исправленным: замечаний нет. */
+export const MOCK_CLEAN = 'mock: clean';
+
 export const mockProvider: Provider = {
-  complete: async () => structuredClone(mockReview),
+  complete: async (request) =>
+    request.prompt.includes(MOCK_CLEAN)
+      ? { summary: 'Mock: замечаний нет.', issues: [] }
+      : structuredClone(mockReview),
 };

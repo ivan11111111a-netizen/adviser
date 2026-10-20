@@ -46,7 +46,11 @@ test('mergeJournals: объединение по id, ступени только
 
 test('matchByPattern: тот же тип — тот же случай, лишние прежние — исправлены', () => {
   const previous = [{ patternId: 'off-by-one' }, { patternId: 'loose-equality' }];
-  const { matched, resolved } = matchByPattern(previous, ['loose-equality', 'missing-return']);
+  const { matched, resolved } = matchByPattern(
+    previous,
+    ['loose-equality', 'missing-return'],
+    (p) => p.patternId,
+  );
   expect(matched).toEqual([previous[1], undefined]);
   expect(resolved).toEqual([previous[0]]);
 });

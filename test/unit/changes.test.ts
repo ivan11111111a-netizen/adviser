@@ -3,6 +3,7 @@ import {
   DocumentChanges,
   fingerprint,
   shiftRange,
+  trackRange,
   type FunctionCode,
 } from '../../src/core/changes';
 
@@ -52,6 +53,32 @@ describe('shiftRange', () => {
       { start: 5, end: 7, newLines: 1 },
     ];
     expect(shiftRange(fn, edits)).toEqual({ start: 9, end: 13 });
+  });
+});
+
+describe('trackRange', () => {
+  const issue = { start: 10, end: 12 };
+
+  test('правки выше сдвигают, ниже — не трогают', () => {
+    expect(trackRange(issue, [{ start: 0, end: 0, newLines: 3 }])).toEqual({ start: 12, end: 14 });
+    expect(trackRange(issue, [{ start: 2, end: 4, newLines: 1 }])).toEqual({ start: 8, end: 10 });
+    expect(trackRange(issue, [{ start: 20, end: 20, newLines: 5 }])).toEqual(issue);
+  });
+
+  test('набор внутри строки ничего не меняет, Enter внутри растягивает', () => {
+    expect(trackRange(issue, [{ start: 11, end: 11, newLines: 1 }])).toEqual(issue);
+    expect(trackRange(issue, [{ start: 12, end: 12, newLines: 2 }])).toEqual({
+      start: 10,
+      end: 13,
+    });
+  });
+
+  test('удалённые строки внутри сжимают, но не выворачивают диапазон', () => {
+    expect(trackRange(issue, [{ start: 10, end: 12, newLines: 1 }])).toEqual({
+      start: 10,
+      end: 10,
+    });
+    expect(trackRange(issue, [{ start: 8, end: 11, newLines: 1 }])).toEqual({ start: 8, end: 9 });
   });
 });
 

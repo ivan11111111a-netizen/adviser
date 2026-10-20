@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DocumentChanges, shiftRange, type FunctionCode, type LineEdit } from '../core/changes';
+import { DocumentChanges, shiftRange, type FunctionCode } from '../core/changes';
 import { functionsOf, type LineRange } from '../core/codeRange';
 import {
   documentSkipReason,
@@ -8,6 +8,7 @@ import {
   retryDelay,
   type SkipReason,
 } from '../core/scheduler';
+import { lineEdits } from './edits';
 import type { Findings } from './findings';
 import { clock, currentMode, doNotDisturbUntil, setDoNotDisturb } from './mode';
 import { showReview, type Outcome, type Reviewer } from './reviewer';
@@ -178,11 +179,7 @@ export class Autopilot implements vscode.Disposable {
     if (!e.contentChanges.length) {
       return;
     }
-    const edits: LineEdit[] = e.contentChanges.map((c) => ({
-      start: c.range.start.line,
-      end: c.range.end.line,
-      newLines: c.text.split('\n').length,
-    }));
+    const edits = lineEdits(e);
     for (const job of [this.running, ...this.queue]) {
       if (job?.doc === doc && job.range) {
         job.range = shiftRange(job.range, edits);
