@@ -156,7 +156,7 @@ export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): 
     maxIssues: Math.min(MAX_ISSUES, limits.maxIssuesPerBlock ?? MAX_ISSUES),
     minSeverity: project.minSeverity ?? 'suggestion',
     hiddenCategories: CATEGORIES.filter((c) => project.categories?.[c] === false),
-    ignore: project.ignore ?? [],
+    ignore: [...(project.ignore ?? [])],
     readAgentFiles: project.readAgentFiles ?? false,
     fromProject: Object.keys(project),
   };

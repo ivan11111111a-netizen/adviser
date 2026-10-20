@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { gitignoreToGlobs, IGNORE_FILE } from '../core/ignoreFile';
 import {
   mergeSettings,
   parseProjectConfig,
@@ -9,39 +10,49 @@ import { currentLevel, currentMode } from './mode';
 
 export const CONFIG_PATH = '.adviser/config.json';
 
-/** Действующие настройки файла. configError — .adviser/config.json не разобран, разборы стоят. */
+/** Действующие настройки файла. configError — файлы проекта не разобраны, разборы стоят. */
 export type FileSettings = Settings & { configError?: string };
 
-type Loaded = { config: ProjectConfig } | { error: string };
+interface Loaded {
+  config?: ProjectConfig;
+  error?: string;
+  /** Шаблоны из .adviserignore, добавляются к ignore из config.json. */
+  ignore: string[];
+}
 
 /**
- * Настройки в три слоя (6.7 плана): умолчания → VS Code → .adviser/config.json папки проекта.
- * Конфиги читаются заранее и перечитываются при изменении, поэтому get() синхронный.
+ * Настройки в три слоя (6.7 плана): умолчания → VS Code → .adviser/config.json папки проекта,
+ * плюс .adviserignore. Файлы читаются заранее и перечитываются при изменении, поэтому get()
+ * синхронный.
  */
 export class ProjectSettings implements vscode.Disposable {
   private readonly loaded = new Map<string, Loaded>();
   private readonly emitter = new vscode.EventEmitter<void>();
   readonly onDidChange = this.emitter.event;
-  private readonly subscriptions: vscode.Disposable[];
+  private readonly subscriptions: vscode.Disposable[] = [];
 
   private constructor(private readonly log: vscode.LogOutputChannel) {
-    const watcher = vscode.workspace.createFileSystemWatcher(`**/${CONFIG_PATH}`);
     const reload = (uri: vscode.Uri) => {
       const folder = vscode.workspace.getWorkspaceFolder(uri);
       if (folder) {
         void this.load(folder).then(() => this.emitter.fire());
       }
     };
-    this.subscriptions = [
-      watcher,
-      watcher.onDidCreate(reload),
-      watcher.onDidChange(reload),
-      watcher.onDidDelete(reload),
+    for (const path of [CONFIG_PATH, IGNORE_FILE]) {
+      const watcher = vscode.workspace.createFileSystemWatcher(`**/${path}`);
+      this.subscriptions.push(
+        watcher,
+        watcher.onDidCreate(reload),
+        watcher.onDidChange(reload),
+        watcher.onDidDelete(reload),
+      );
+    }
+    this.subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => void this.loadAll()),
       vscode.workspace.onDidChangeConfiguration(
         (e) => e.affectsConfiguration('adviser') && this.emitter.fire(),
       ),
-    ];
+    );
   }
 
   static async create(log: vscode.LogOutputChannel) {
@@ -58,10 +69,10 @@ export class ProjectSettings implements vscode.Disposable {
       level: currentLevel(uri),
       language: vscode.workspace.getConfiguration('adviser', uri).get<string>('language', 'auto'),
     };
-    if (loaded && 'error' in loaded) {
-      return { ...mergeSettings(user), configError: loaded.error };
-    }
-    return mergeSettings(user, loaded?.config);
+    const merged = mergeSettings(user, loaded?.config);
+    // Новый массив: ignore из mergeSettings — это массив самого конфига, его не трогаем.
+    const settings = { ...merged, ignore: [...merged.ignore, ...(loaded?.ignore ?? [])] };
+    return loaded?.error ? { ...settings, configError: loaded.error } : settings;
   }
 
   /** Файл попадает под ignore своего проекта. */
@@ -88,27 +99,62 @@ export class ProjectSettings implements vscode.Disposable {
   }
 
   private async load(folder: vscode.WorkspaceFolder) {
-    const key = folder.uri.toString();
-    const file = vscode.Uri.joinPath(folder.uri, CONFIG_PATH);
-    let text: string;
-    try {
-      text = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
-    } catch (e) {
-      if (e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-        this.loaded.delete(key);
-        return;
+    const [configText, ignoreText] = await Promise.all([
+      readOptional(folder, CONFIG_PATH),
+      readOptional(folder, IGNORE_FILE),
+    ]);
+    const loaded: Loaded = { ignore: [] };
+    const errors: string[] = [];
+    if (configText instanceof Error) {
+      errors.push(`${CONFIG_PATH} не прочитан: ${configText.message}`);
+    } else if (configText !== undefined) {
+      const { config, error } = parseProjectConfig(configText);
+      if (error === undefined) {
+        loaded.config = config;
+      } else {
+        errors.push(`${CONFIG_PATH}: ${error}`);
       }
-      this.loaded.set(key, { error: `не прочитан: ${String(e)}` });
-      return;
     }
-    const { config, error } = parseProjectConfig(text);
-    if (error !== undefined) {
+    if (ignoreText instanceof Error) {
+      errors.push(`${IGNORE_FILE} не прочитан: ${ignoreText.message}`);
+    } else if (ignoreText !== undefined) {
+      const { globs, skipped } = gitignoreToGlobs(ignoreText);
+      loaded.ignore = globs;
+      if (skipped.length) {
+        this.log.warn(
+          `${IGNORE_FILE}: отрицания не поддерживаются, пропущены: ${skipped.join(', ')}`,
+        );
+      }
+    }
+    if (errors.length) {
       // Не применяем ничего: опечатка не должна молча выключить ignore и отправить лишнее.
-      this.log.warn(`${CONFIG_PATH} в «${folder.name}»: ${error}. Разборы в этой папке стоят.`);
-      this.loaded.set(key, { error });
-    } else {
-      this.log.info(`${CONFIG_PATH} в «${folder.name}»: ${Object.keys(config!).join(', ')}`);
-      this.loaded.set(key, { config: config! });
+      loaded.error = errors.join('; ');
+      loaded.config = undefined;
+      this.log.warn(`«${folder.name}»: ${loaded.error}. Разборы в этой папке стоят.`);
+    } else if (loaded.config || loaded.ignore.length) {
+      const what = [
+        ...Object.keys(loaded.config ?? {}),
+        ...(loaded.ignore.length ? [IGNORE_FILE] : []),
+      ];
+      this.log.info(`настройки проекта «${folder.name}»: ${what.join(', ')}`);
     }
+    this.loaded.set(folder.uri.toString(), loaded);
+  }
+}
+
+/** Файл проекта: undefined — его нет; Error — есть, но не читается. */
+async function readOptional(
+  folder: vscode.WorkspaceFolder,
+  path: string,
+): Promise<string | undefined | Error> {
+  try {
+    return new TextDecoder().decode(
+      await vscode.workspace.fs.readFile(vscode.Uri.joinPath(folder.uri, path)),
+    );
+  } catch (e) {
+    if (e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+      return undefined;
+    }
+    return e instanceof Error ? e : new Error(String(e));
   }
 }

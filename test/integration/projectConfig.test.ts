@@ -41,6 +41,11 @@ suite('Настройки проекта', () => {
     assert.strictEqual(adviser(doc.uri).length, 0);
   });
 
+  test('файл из .adviserignore не отправляется', async () => {
+    const doc = await reviewIn('answers/task1.js');
+    assert.strictEqual(adviser(doc.uri).length, 0);
+  });
+
   test('окружение функции уходит модели, только если промпт его объясняет', async () => {
     const api = (await vscode.extensions
       .getExtension('undefined_publisher.adviser')!
