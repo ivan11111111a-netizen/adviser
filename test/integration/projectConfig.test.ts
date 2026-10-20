@@ -40,4 +40,29 @@ suite('Настройки проекта', () => {
     const doc = await reviewIn('generated/api.js');
     assert.strictEqual(adviser(doc.uri).length, 0);
   });
+
+  test('окружение функции уходит модели, только если промпт его объясняет', async () => {
+    const api = (await vscode.extensions
+      .getExtension('undefined_publisher.adviser')!
+      .activate()) as TestApi;
+    const config = vscode.workspace.getConfiguration('adviser');
+
+    await reviewIn('cart.js');
+    assert.doesNotMatch(api.lastMockRequest()!.prompt, /<context>/, 'v1 про окружение не знает');
+
+    await config.update('dev.prompt', 'mentor.v2', vscode.ConfigurationTarget.Global);
+    try {
+      await reviewIn('cart.js');
+      const { system, prompt } = api.lastMockRequest()!;
+      assert.match(system, /Между тегами <context>/);
+      assert.match(prompt, /<context>\nЗависимости проекта: lodash \^4\.17\.21\n<\/context>/);
+    } finally {
+      await config.update('dev.prompt', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
 });
+
+/** Часть TestApi из src/extension.ts: импортировать его тесты не могут (см. journal.test.ts). */
+interface TestApi {
+  lastMockRequest(): { system: string; prompt: string } | undefined;
+}

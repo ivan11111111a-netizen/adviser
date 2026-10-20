@@ -41,6 +41,8 @@ export interface PromptInput {
   patterns: Pattern[];
   /** Частые ошибки учащегося (learnerProfile). Нужны, только если в промпте есть {{profile}}. */
   profile?: { patternId: string; count: number }[];
+  /** Окружение функции (buildContext). Уходит, только если промпт объясняет тег <context>. */
+  context?: string;
 }
 
 const SECTION_HEADING = /^## (\w+): (\S+)[ \t]*$/m;
@@ -89,9 +91,15 @@ export function buildPrompt(template: PromptTemplate, input: PromptInput): Model
       }
       return fill(section);
     });
+  const system = fill(template.base);
+  // Промпт, который не говорит, что <context> — только справка, получил бы чужой код на разбор.
+  const context =
+    input.context && system.includes('<context>')
+      ? `<context>\n${input.context}\n</context>\n\n`
+      : '';
   return {
-    system: fill(template.base),
-    prompt: `Язык программирования: ${input.languageId}\n\n<code>\n${numberLines(input.code)}\n</code>\n`,
+    system,
+    prompt: `Язык программирования: ${input.languageId}\n\n${context}<code>\n${numberLines(input.code)}\n</code>\n`,
     jsonSchema: reviewJsonSchema,
   };
 }

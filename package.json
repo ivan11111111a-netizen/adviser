@@ -165,6 +165,12 @@
           "scope": "machine",
           "markdownDescription": "Модель. Для OpenRouter — id модели, бесплатные с суффиксом `:free`. Для `claude-code` по умолчанию `sonnet`."
         },
+        "adviser.dev.prompt": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Только для разработки: версия промпта из `prompts/`, например `mentor.v2`. Пусто — та, что в расширении. Работает только при запуске из исходников (F5)."
+        },
         "adviser.dev.claudePath": {
           "type": "string",
           "default": "claude",

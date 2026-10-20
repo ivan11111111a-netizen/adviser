@@ -15,6 +15,7 @@ import type { Issue, Review } from '../core/reviewSchema';
 import { filterIssues, type Settings } from '../core/projectConfig';
 import { isEnvFile } from '../core/scheduler';
 import { readBundled, readPatterns } from './bundled';
+import { collectContext } from './context';
 import type { Findings } from './findings';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
 
@@ -64,9 +65,8 @@ export class Reviewer {
     }
 
     // Читаем при каждом разборе: в F5 правка промпта видна без перезапуска.
-    const template = parseTemplate(
-      await readBundled(this.context, 'prompts', `${PROMPT_VERSION}.md`),
-    );
+    const version = this.promptVersion();
+    const template = parseTemplate(await readBundled(this.context, 'prompts', `${version}.md`));
     const patterns = await readPatterns(this.context);
     const { level } = settings;
     const language = resolveLanguage(settings.language, vscode.env.language);
@@ -77,6 +77,8 @@ export class Reviewer {
       language,
       patterns: patternsFor(patterns, doc.languageId),
       profile: this.profile(),
+      // Окружение собираем, только если промпт знает, что с ним делать.
+      context: template.base.includes('<context>') ? await collectContext(doc, range) : undefined,
     });
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;
@@ -89,7 +91,7 @@ export class Reviewer {
         : { kind: 'reviewed', review: shown(cached, settings), cached: true };
     }
 
-    this.log.info(`${source}: разбор ${where}, уровень ${level}, язык ${language}`);
+    this.log.info(`${source}: разбор ${where}, ${version}, уровень ${level}, язык ${language}`);
     const result = await runReview(configured.provider, request, signal);
     if (signal?.aborted) {
       this.log.info(`${where}: код изменился, разбор отменён`);
@@ -111,6 +113,14 @@ export class Reviewer {
     );
     this.cache.set(key, review);
     return { kind: 'reviewed', review: shown(review, settings), cached: false };
+  }
+
+  /** Версия промпта. adviser.dev.prompt — чтобы автор погонял черновик в F5, не меняя код. */
+  private promptVersion(): string {
+    const dev = vscode.workspace.getConfiguration('adviser').get<string>('dev.prompt', '').trim();
+    const fromSources = this.context.extensionMode !== vscode.ExtensionMode.Production;
+    // Только имя файла из prompts/, без путей.
+    return fromSources && /^[\w.-]+$/.test(dev) ? dev : PROMPT_VERSION;
   }
 }
 

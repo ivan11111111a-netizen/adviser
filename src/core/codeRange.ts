@@ -31,7 +31,7 @@ export const FALLBACK_CONTEXT = 10;
 const FUNCTION_KINDS: number[] = [SymbolKind.Method, SymbolKind.Constructor, SymbolKind.Function];
 
 // Стрелочная функция в константе приходит как многострочная Variable или Constant.
-const isFunctionLike = (s: SymbolNode) =>
+export const isFunctionLike = (s: SymbolNode) =>
   FUNCTION_KINDS.includes(s.kind) ||
   ((s.kind === SymbolKind.Variable || s.kind === SymbolKind.Constant) && s.end > s.start);
 

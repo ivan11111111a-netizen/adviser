@@ -1,4 +1,4 @@
-import type { Provider } from '../core/engine';
+import type { ModelRequest, Provider } from '../core/engine';
 import type { Review } from '../core/reviewSchema';
 
 /** Заготовленный ответ: интерфейс и тесты проверяются без сети и токенов. */
@@ -35,9 +35,14 @@ export const mockReview: Review = {
 /** Код с этой меткой mock считает исправленным: замечаний нет. */
 export const MOCK_CLEAN = 'mock: clean';
 
+/** Последний запрос к mock: тесты смотрят, что ушло бы модели. */
+export let lastMockRequest: ModelRequest | undefined;
+
 export const mockProvider: Provider = {
-  complete: async (request) =>
-    request.prompt.includes(MOCK_CLEAN)
+  complete: async (request) => {
+    lastMockRequest = request;
+    return request.prompt.includes(MOCK_CLEAN)
       ? { summary: 'Mock: замечаний нет.', issues: [] }
-      : structuredClone(mockReview),
+      : structuredClone(mockReview);
+  },
 };

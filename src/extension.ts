@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { setApiKey } from './config/provider';
+import type { ModelRequest } from './core/engine';
 import { learnerProfile } from './core/journal';
 import { Autopilot } from './editor/autopilot';
 import { Findings } from './editor/findings';
@@ -19,11 +20,14 @@ import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
 import { ProjectSettings } from './editor/settings';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
+import { lastMockRequest } from './providers/mock';
 
 /** Что видят интеграционные тесты. Только в режиме тестов: журнал не отдаём другим расширениям. */
 export interface TestApi {
   journal: Journal;
   journalView: JournalView;
+  /** Что ушло бы модели в последнем разборе через mock. */
+  lastMockRequest: () => ModelRequest | undefined;
 }
 
 let journal: Journal | undefined;
@@ -79,7 +83,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       hoverProvider(findings, journal),
     ),
   );
-  return context.extensionMode === vscode.ExtensionMode.Test ? { journal, journalView } : undefined;
+  return context.extensionMode === vscode.ExtensionMode.Test
+    ? { journal, journalView, lastMockRequest: () => lastMockRequest }
+    : undefined;
 }
 
 /** Журнал пишется с задержкой — дописываем то, что не успело уйти на диск. */

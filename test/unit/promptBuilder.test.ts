@@ -103,6 +103,22 @@ describe('профиль учащегося', () => {
   });
 });
 
+test('окружение уходит, только если промпт объясняет тег <context>', () => {
+  const input = {
+    languageId: 'javascript',
+    code: 'f()',
+    level: 'beginner' as const,
+    language: 'ru' as const,
+    patterns: PATTERNS,
+    context: 'Зависимости проекта: lodash 4',
+  };
+  const knows = parseTemplate('Наставник. Между тегами <context> — справка.');
+  expect(buildPrompt(knows, input).prompt).toBe(
+    'Язык программирования: javascript\n\n<context>\nЗависимости проекта: lodash 4\n</context>\n\n<code>\n1 | f()\n</code>\n',
+  );
+  expect(buildPrompt(parseTemplate('Наставник.'), input).prompt).not.toContain('<context>');
+});
+
 const PROMPTS = readdirSync('prompts').filter((f) => f.endsWith('.md'));
 
 test.each(PROMPTS)('prompts/%s собирается для всех уровней, языков и профилей', (file) => {
