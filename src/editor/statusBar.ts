@@ -4,6 +4,7 @@ import type { Mode } from '../core/scheduler';
 import type { Autopilot } from './autopilot';
 import { clock, doNotDisturbUntil, setMode } from './mode';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
+import type { UsageTracker } from './usage';
 
 export const MENU_COMMAND = 'adviser.showMenu';
 
@@ -47,6 +48,7 @@ export class StatusBar implements vscode.Disposable {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly settings: ProjectSettings,
+    private readonly usage: UsageTracker,
   ) {
     this.item.name = 'Adviser';
     this.item.command = MENU_COMMAND;
@@ -54,6 +56,7 @@ export class StatusBar implements vscode.Disposable {
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.languages.onDidChangeDiagnostics(() => this.refresh()),
       settings.onDidChange(() => this.refresh()),
+      usage.onDidChange(() => this.refresh()),
     ];
     this.refresh();
     this.item.show();
@@ -113,6 +116,7 @@ export class StatusBar implements vscode.Disposable {
         : undefined,
       dnd ? `Не беспокоить до ${clock(dnd)}.` : undefined,
       count ? `Замечаний в этом файле: ${count}.` : undefined,
+      ...this.usage.summary(),
       'Нажми, чтобы сменить режим.',
     ]
       .filter(Boolean)

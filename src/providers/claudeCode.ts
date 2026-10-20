@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { InvalidResponseError, type ModelRequest, type Provider } from '../core/engine';
+import { InvalidResponseError, type ModelRequest, type Provider, type Usage } from '../core/engine';
 
 export interface ClaudeCodeOptions {
   executable: string;
@@ -42,9 +42,35 @@ export function parseClaudeOutput(stdout: string): unknown {
   return out.structured_output;
 }
 
+/** Расход из ответа claude -p: входные токены вместе с прочитанными и записанными в кэш. */
+export function parseClaudeUsage(stdout: string): Usage | undefined {
+  try {
+    const { usage } = JSON.parse(stdout) as { usage?: Record<string, number | undefined> };
+    if (!usage) {
+      return undefined;
+    }
+    const n = (key: string) => usage[key] ?? 0;
+    return {
+      inputTokens:
+        n('input_tokens') + n('cache_read_input_tokens') + n('cache_creation_input_tokens'),
+      outputTokens: n('output_tokens'),
+    };
+  } catch {
+    // Не JSON — это заметит parseClaudeOutput.
+    return undefined;
+  }
+}
+
 export function createClaudeCodeProvider(options: ClaudeCodeOptions): Provider {
   return {
-    complete: (request, signal) => run(options, request, signal).then(parseClaudeOutput),
+    complete: (request, signal, onUsage) =>
+      run(options, request, signal).then((stdout) => {
+        const usage = parseClaudeUsage(stdout);
+        if (usage) {
+          onUsage?.(usage);
+        }
+        return parseClaudeOutput(stdout);
+      }),
   };
 }
 

@@ -6,9 +6,22 @@ export interface ModelRequest {
   jsonSchema: Record<string, unknown>;
 }
 
-/** Общий интерфейс провайдеров моделей (src/providers/). Возвращает разобранный JSON без проверки. */
+/** Расход токенов на один запрос к модели. */
+export interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
+ * Общий интерфейс провайдеров моделей (src/providers/). Возвращает разобранный JSON без проверки.
+ * onUsage — расход запроса, если провайдер его сообщает (для учёта денег, 6.9 плана).
+ */
 export interface Provider {
-  complete(request: ModelRequest, signal?: AbortSignal): Promise<unknown>;
+  complete(
+    request: ModelRequest,
+    signal?: AbortSignal,
+    onUsage?: (usage: Usage) => void,
+  ): Promise<unknown>;
 }
 
 /** Провайдер бросает её, если модель ответила не JSON. На неё, как и на ответ не по схеме, движок делает один повтор. */
@@ -28,12 +41,13 @@ export async function runReview(
   provider: Provider,
   request: ModelRequest,
   signal?: AbortSignal,
+  onUsage?: (usage: Usage) => void,
 ): Promise<ReviewResult> {
   let lastError = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     let raw: unknown;
     try {
-      raw = await provider.complete(request, signal);
+      raw = await provider.complete(request, signal, onUsage);
     } catch (e) {
       if (!(e instanceof InvalidResponseError)) {
         return { ok: false, error: e instanceof Error ? e.message : String(e), invalid: false };

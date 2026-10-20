@@ -19,6 +19,7 @@ import { readBundled, readPatterns } from './bundled';
 import { collectContext, readRules } from './context';
 import type { Findings } from './findings';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
+import type { UsageTracker } from './usage';
 
 export type Outcome =
   | { kind: 'reviewed'; review: Review; cached: boolean }
@@ -38,6 +39,7 @@ export class Reviewer {
     /** Частые ошибки учащегося из журнала. Идут в промпт, если в нём есть {{profile}}. */
     private readonly profile: () => PromptInput['profile'],
     private readonly settings: ProjectSettings,
+    private readonly usage: UsageTracker,
   ) {}
 
   async review(
@@ -102,8 +104,18 @@ export class Reviewer {
         : { kind: 'reviewed', review: shown(cached, settings), cached: true };
     }
 
+    // Лимит в деньгах проверяем после кэша: ответ из кэша бесплатный.
+    const over = this.usage.exceeded();
+    if (over) {
+      return { kind: 'refused', message: `${over}, разборы на паузе (настройки adviser.budget)` };
+    }
     this.log.info(`${source}: разбор ${where}, ${version}, уровень ${level}, язык ${language}`);
-    const result = await runReview(configured.provider, request, signal);
+    const spent = { inputTokens: 0, outputTokens: 0 };
+    const result = await runReview(configured.provider, request, signal, (u) => {
+      spent.inputTokens += u.inputTokens;
+      spent.outputTokens += u.outputTokens;
+      void this.usage.add(u);
+    });
     if (signal?.aborted) {
       this.log.info(`${where}: код изменился, разбор отменён`);
       return { kind: 'aborted' };
@@ -119,8 +131,11 @@ export class Reviewer {
       this.log.info(`patternId не из списка, записаны как other: ${unknown.join(', ')}`);
     }
     const { issues, summary } = review;
+    const tokens = spent.inputTokens
+      ? `, токенов ${spent.inputTokens} → ${spent.outputTokens}`
+      : '';
     this.log.info(
-      `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')})`,
+      `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')}${tokens})`,
     );
     this.cache.set(key, review);
     return { kind: 'reviewed', review: shown(review, settings), cached: false };

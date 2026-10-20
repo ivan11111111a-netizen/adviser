@@ -145,6 +145,34 @@
           "default": [],
           "markdownDescription": "Типы ошибок (`patternId` из `patterns/patterns.json`), о которых Adviser больше не говорит. Пополняется из лампочки у замечания: «больше не показывать»."
         },
+        "adviser.budget.inputPricePerMillion": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "scope": "machine",
+          "markdownDescription": "Цена входных токенов своего ключа, $ за миллион — для учёта расходов. 0 — деньги не считать (бесплатные и локальные модели)."
+        },
+        "adviser.budget.outputPricePerMillion": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "scope": "machine",
+          "markdownDescription": "Цена выходных токенов, $ за миллион."
+        },
+        "adviser.budget.dailyLimitUsd": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "scope": "machine",
+          "markdownDescription": "Лимит расходов в день, $. Исчерпан — разборы на паузе до завтра. 0 — без лимита."
+        },
+        "adviser.budget.monthlyLimitUsd": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "scope": "machine",
+          "markdownDescription": "Лимит расходов в месяц, $. 0 — без лимита."
+        },
         "adviser.provider": {
           "type": "string",
           "enum": [

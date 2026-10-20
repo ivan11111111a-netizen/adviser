@@ -28,6 +28,7 @@ import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
 import { ProjectSettings } from './editor/settings';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
+import { UsageTracker } from './editor/usage';
 import { lastMockRequest } from './providers/mock';
 
 /** Что видят интеграционные тесты. Только в режиме тестов: журнал не отдаём другим расширениям. */
@@ -44,6 +45,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   const log = vscode.window.createOutputChannel('Adviser', { log: true });
   journal = await Journal.open(context, log);
   const settings = await ProjectSettings.create(log);
+  const usage = new UsageTracker(context);
   const findings = new Findings(journal);
   const opened = journal;
   const reviewer = new Reviewer(
@@ -51,8 +53,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     log,
     () => learnerProfile(opened.all(), Date.now()),
     settings,
+    usage,
   );
-  const status = new StatusBar(context, settings);
+  const status = new StatusBar(context, settings, usage);
   const autopilot = new Autopilot(context, reviewer, findings, status, log, settings);
   // Названия типов ошибок для панели и отчёта. Без них панель покажет id.
   const patterns = await readPatterns(context).catch((e: unknown) => {
@@ -65,6 +68,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     log,
     journal,
     settings,
+    usage,
     findings,
     status,
     autopilot,
