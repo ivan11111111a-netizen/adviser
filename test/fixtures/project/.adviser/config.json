@@ -1,0 +1,4 @@
+{
+  "minSeverity": "warning",
+  "ignore": ["generated/**"]
+}

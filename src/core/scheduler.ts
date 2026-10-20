@@ -3,8 +3,6 @@ export const MODES = ['mentor', 'manual'] as const;
 export type Mode = (typeof MODES)[number];
 
 export interface Limits {
-  /** Пауза в наборе, после которой разбираем изменённые функции. */
-  pauseMs: number;
   /** Не разбирать одну функцию чаще. */
   cooldownMs: number;
   perHour: number;
@@ -15,7 +13,6 @@ export interface Limits {
 }
 
 export const MENTOR_LIMITS: Limits = {
-  pauseMs: 30_000,
   cooldownMs: 60_000,
   perHour: 20,
   perDay: 150,

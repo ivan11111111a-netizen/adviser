@@ -4,3 +4,5 @@ package-lock.json
 # Учебный код с ошибками нарочно
 test/fixtures/
 evals/cases/
+# Генерирует тест из zod-схемы (test/unit/projectConfig.test.ts)
+schemas/

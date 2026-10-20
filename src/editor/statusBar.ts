@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import type { Triggers } from '../core/projectConfig';
 import type { Mode } from '../core/scheduler';
 import type { Autopilot } from './autopilot';
-import { clock, currentMode, doNotDisturbUntil, setMode } from './mode';
+import { clock, doNotDisturbUntil, setMode } from './mode';
+import { CONFIG_PATH, type ProjectSettings } from './settings';
 
 export const MENU_COMMAND = 'adviser.showMenu';
 
@@ -9,7 +11,7 @@ const MODE_TEXT: Record<Mode, { icon: string; title: string; detail: string }> =
   mentor: {
     icon: '$(mortar-board)',
     title: 'Наставник',
-    detail: 'Сам разбирает изменённые функции: при сохранении, уходе из функции и после паузы 30 с',
+    detail: 'Сам разбирает изменённые функции: при сохранении, уходе из функции и после паузы',
   },
   manual: {
     icon: '$(eye-closed)',
@@ -17,6 +19,18 @@ const MODE_TEXT: Record<Mode, { icon: string; title: string; detail: string }> =
     detail: 'Только по команде «Разобрать эту функцию»',
   },
 };
+
+/** Когда «Наставник» разбирает сам — по триггерам из настроек проекта. */
+function mentorDetail(triggers: Triggers) {
+  const when = [
+    triggers.onSave ? 'при сохранении' : undefined,
+    triggers.onLeaveFunction ? 'при уходе из функции' : undefined,
+    triggers.pauseMs ? `после паузы ${triggers.pauseMs / 1000} с` : undefined,
+  ].filter(Boolean);
+  return when.length
+    ? `Сам разбирает изменённые функции: ${when.join(', ')}`
+    : 'Триггеры выключены в настройках проекта, разбирает только по команде';
+}
 
 /** Статус-бар (6.8 плана): режим, «разбираю…», число замечаний в файле, проблема; по клику — меню. */
 export class StatusBar implements vscode.Disposable {
@@ -30,15 +44,16 @@ export class StatusBar implements vscode.Disposable {
   private problem?: string;
   private dndTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly settings: ProjectSettings,
+  ) {
     this.item.name = 'Adviser';
     this.item.command = MENU_COMMAND;
     this.subscriptions = [
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.languages.onDidChangeDiagnostics(() => this.refresh()),
-      vscode.workspace.onDidChangeConfiguration(
-        (e) => e.affectsConfiguration('adviser.mode') && this.refresh(),
-      ),
+      settings.onDidChange(() => this.refresh()),
     ];
     this.refresh();
     this.item.show();
@@ -66,20 +81,24 @@ export class StatusBar implements vscode.Disposable {
   }
 
   refresh() {
-    const mode = MODE_TEXT[currentMode()];
+    const uri = vscode.window.activeTextEditor?.document.uri;
+    const settings = this.settings.get(uri);
+    const mode = MODE_TEXT[settings.mode];
+    const problem = settings.configError
+      ? `исправь ${CONFIG_PATH}: ${settings.configError}`
+      : this.problem;
     const dnd = doNotDisturbUntil(this.context);
     clearTimeout(this.dndTimer);
     if (dnd) {
       this.dndTimer = setTimeout(() => this.refresh(), dnd - Date.now() + 500);
     }
-    const uri = vscode.window.activeTextEditor?.document.uri;
     const count = uri
       ? vscode.languages.getDiagnostics(uri).filter((d) => d.source === 'Adviser').length
       : 0;
 
     const icon = this.busyCount
       ? '$(sync~spin)'
-      : this.problem
+      : problem
         ? '$(warning)'
         : dnd
           ? '$(bell-slash)'
@@ -87,8 +106,11 @@ export class StatusBar implements vscode.Disposable {
     this.item.text = `${icon} Adviser${count ? ` ${count}` : ''}`;
     this.item.tooltip = [
       this.busyCount ? 'Разбираю…' : undefined,
-      this.problem ? `Проблема: ${this.problem}` : undefined,
-      `Режим «${mode.title}». ${mode.detail}.`,
+      problem ? `Проблема: ${problem}` : undefined,
+      `Режим «${mode.title}». ${settings.mode === 'mentor' ? mentorDetail(settings.triggers) : mode.detail}.`,
+      settings.fromProject.length
+        ? `Из ${CONFIG_PATH}: ${settings.fromProject.join(', ')}.`
+        : undefined,
       dnd ? `Не беспокоить до ${clock(dnd)}.` : undefined,
       count ? `Замечаний в этом файле: ${count}.` : undefined,
       'Нажми, чтобы сменить режим.',
@@ -111,8 +133,9 @@ export async function showMenu(
   context: vscode.ExtensionContext,
   autopilot: Autopilot,
   log: vscode.LogOutputChannel,
+  settings: ProjectSettings,
 ) {
-  const mode = currentMode();
+  const mode = settings.get(vscode.window.activeTextEditor?.document.uri).mode;
   const dnd = doNotDisturbUntil(context);
   const separator: MenuItem = { label: '', kind: vscode.QuickPickItemKind.Separator };
   const modes = (Object.keys(MODE_TEXT) as Mode[]).map((m): MenuItem => ({

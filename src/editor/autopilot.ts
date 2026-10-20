@@ -1,17 +1,12 @@
 import * as vscode from 'vscode';
 import { DocumentChanges, shiftRange, type FunctionCode } from '../core/changes';
 import { functionsOf, type LineRange } from '../core/codeRange';
-import {
-  documentSkipReason,
-  MENTOR_LIMITS,
-  pickReady,
-  retryDelay,
-  type SkipReason,
-} from '../core/scheduler';
+import { documentSkipReason, pickReady, retryDelay, type SkipReason } from '../core/scheduler';
 import { lineEdits } from './edits';
 import type { Findings } from './findings';
-import { clock, currentMode, doNotDisturbUntil, setDoNotDisturb } from './mode';
+import { clock, doNotDisturbUntil, setDoNotDisturb } from './mode';
 import { showReview, type Outcome, type Reviewer } from './reviewer';
+import type { ProjectSettings } from './settings';
 import type { StatusBar } from './statusBar';
 import { documentSymbols } from './symbols';
 
@@ -75,6 +70,7 @@ export class Autopilot implements vscode.Disposable {
     private readonly findings: Findings,
     private readonly status: StatusBar,
     private readonly log: vscode.LogOutputChannel,
+    private readonly settings: ProjectSettings,
   ) {
     this.subscriptions = [
       vscode.workspace.onDidChangeTextDocument((e) => this.edited(e)),
@@ -85,7 +81,10 @@ export class Autopilot implements vscode.Disposable {
       }),
       vscode.workspace.onDidSaveTextDocument((doc) => {
         this.savedAt.set(doc.uri.toString(), Date.now());
-        if (this.manualSaves.delete(doc.uri.toString())) {
+        if (
+          this.manualSaves.delete(doc.uri.toString()) &&
+          this.settings.get(doc.uri).triggers.onSave
+        ) {
           void this.trigger(doc, 'сохранение');
         }
       }),
@@ -95,10 +94,13 @@ export class Autopilot implements vscode.Disposable {
       }),
       vscode.window.onDidChangeActiveTextEditor((editor) => this.switched(editor)),
       vscode.workspace.onDidCloseTextDocument((doc) => this.closed(doc)),
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('adviser.mode') && currentMode() === 'manual') {
+      // Режим сменили в настройках или в .adviser/config.json — «Вручную» останавливает разборы.
+      settings.onDidChange(() => {
+        if (this.running && this.settings.get(this.running.doc.uri).mode === 'manual') {
           this.stop();
         }
+      }),
+      vscode.workspace.onDidChangeConfiguration((e) => {
         if (['provider', 'baseUrl', 'model'].some((s) => e.affectsConfiguration(`adviser.${s}`))) {
           // Человек поправил настройки — пробуем сразу, без паузы после ошибки.
           this.failures = 0;
@@ -132,8 +134,8 @@ export class Autopilot implements vscode.Disposable {
   }
 
   /** Почему автопилот сейчас молчит; undefined — работает. */
-  private blocked(): string | undefined {
-    if (currentMode() === 'manual') {
+  private blocked(doc: vscode.TextDocument): string | undefined {
+    if (this.settings.get(doc.uri).mode === 'manual') {
       return 'режим «Вручную»';
     }
     if (doNotDisturbUntil(this.context)) {
@@ -208,7 +210,10 @@ export class Autopilot implements vscode.Disposable {
     const state = this.state(doc);
     state.changes.edit(edits);
     clearTimeout(state.pauseTimer);
-    state.pauseTimer = setTimeout(() => void this.trigger(doc, 'пауза'), MENTOR_LIMITS.pauseMs);
+    const { pauseMs } = this.settings.get(doc.uri).triggers;
+    if (pauseMs > 0) {
+      state.pauseTimer = setTimeout(() => void this.trigger(doc, 'пауза'), pauseMs);
+    }
   }
 
   private async cursorMoved(editor: vscode.TextEditor) {
@@ -314,7 +319,11 @@ export class Autopilot implements vscode.Disposable {
     if (!state?.changes.hasTouched || doc.isClosed) {
       return;
     }
-    const blocked = this.blocked();
+    const settings = this.settings.get(doc.uri);
+    if (why === 'уход из функции' && !settings.triggers.onLeaveFunction) {
+      return;
+    }
+    const blocked = this.blocked(doc);
     if (blocked) {
       this.log.debug(`${why}: автопилот молчит — ${blocked}`);
       return;
@@ -348,7 +357,7 @@ export class Autopilot implements vscode.Disposable {
       // Ждущие в очереди тоже считаем: они вот-вот уйдут к модели.
       [...this.sent, ...pending.map(() => now)],
       now,
-      MENTOR_LIMITS,
+      settings.limits,
     );
     for (const { key, reason } of skipped) {
       this.log.debug(`${why}: ${key} подождёт — ${SKIP_TEXT[reason]}`);
@@ -371,7 +380,7 @@ export class Autopilot implements vscode.Disposable {
     if (!job) {
       return;
     }
-    if (!job.range || job.doc.isClosed || this.blocked()) {
+    if (!job.range || job.doc.isClosed || this.blocked(job.doc)) {
       return this.pump();
     }
     job.abort = new AbortController();

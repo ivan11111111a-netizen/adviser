@@ -79,6 +79,12 @@
         }
       ]
     },
+    "jsonValidation": [
+      {
+        "fileMatch": "**/.adviser/config.json",
+        "url": "./schemas/adviser-config.schema.json"
+      }
+    ],
     "viewsWelcome": [
       {
         "view": "adviser.journal",

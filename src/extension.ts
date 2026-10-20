@@ -17,6 +17,7 @@ import { Journal } from './editor/journal';
 import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
 import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
+import { ProjectSettings } from './editor/settings';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
 
 /** Что видят интеграционные тесты. Только в режиме тестов: журнал не отдаём другим расширениям. */
@@ -30,11 +31,17 @@ let journal: Journal | undefined;
 export async function activate(context: vscode.ExtensionContext): Promise<TestApi | undefined> {
   const log = vscode.window.createOutputChannel('Adviser', { log: true });
   journal = await Journal.open(context, log);
+  const settings = await ProjectSettings.create(log);
   const findings = new Findings(journal);
   const opened = journal;
-  const reviewer = new Reviewer(context, log, () => learnerProfile(opened.all(), Date.now()));
-  const status = new StatusBar(context);
-  const autopilot = new Autopilot(context, reviewer, findings, status, log);
+  const reviewer = new Reviewer(
+    context,
+    log,
+    () => learnerProfile(opened.all(), Date.now()),
+    settings,
+  );
+  const status = new StatusBar(context, settings);
+  const autopilot = new Autopilot(context, reviewer, findings, status, log, settings);
   // Названия типов ошибок для панели и отчёта. Без них панель покажет id.
   const patterns = await readPatterns(context).catch((e: unknown) => {
     log.warn(`patterns.json не прочитан: ${String(e)}`);
@@ -44,6 +51,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   context.subscriptions.push(
     log,
     journal,
+    settings,
     findings,
     status,
     autopilot,
@@ -58,7 +66,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       ),
     ),
     vscode.commands.registerCommand('adviser.setApiKey', () => setApiKey(context)),
-    vscode.commands.registerCommand(MENU_COMMAND, () => showMenu(context, autopilot, log)),
+    vscode.commands.registerCommand(MENU_COMMAND, () =>
+      showMenu(context, autopilot, log, settings),
+    ),
     // Не объявлены в package.json, поэтому их нет в палитре: их зовут только ссылки в hover.
     vscode.commands.registerCommand(REVEAL_COMMAND, (args?: RevealArgs) =>
       revealStep(findings, log, args),

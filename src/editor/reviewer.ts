@@ -12,10 +12,11 @@ import {
   type PromptInput,
 } from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
+import { filterIssues, type Settings } from '../core/projectConfig';
 import { isEnvFile } from '../core/scheduler';
 import { readBundled, readPatterns } from './bundled';
 import type { Findings } from './findings';
-import { currentLevel } from './mode';
+import { CONFIG_PATH, type ProjectSettings } from './settings';
 
 export type Outcome =
   | { kind: 'reviewed'; review: Review; cached: boolean }
@@ -34,6 +35,7 @@ export class Reviewer {
     private readonly log: vscode.LogOutputChannel,
     /** Частые ошибки учащегося из журнала. Идут в промпт, если в нём есть {{profile}}. */
     private readonly profile: () => PromptInput['profile'],
+    private readonly settings: ProjectSettings,
   ) {}
 
   async review(
@@ -49,6 +51,13 @@ export class Reviewer {
     if (isEnvFile(doc.uri.fsPath)) {
       return { kind: 'refused', message: 'файлы .env* не отправляются' };
     }
+    const settings = this.settings.get(doc.uri);
+    if (settings.configError) {
+      return { kind: 'refused', message: `исправь ${CONFIG_PATH}: ${settings.configError}` };
+    }
+    if (this.settings.ignored(doc, settings)) {
+      return { kind: 'refused', message: `файл в ignore ${CONFIG_PATH}, не отправляю` };
+    }
     const configured = await createProvider(this.context);
     if (typeof configured === 'string') {
       return { kind: 'refused', message: configured };
@@ -59,11 +68,8 @@ export class Reviewer {
       await readBundled(this.context, 'prompts', `${PROMPT_VERSION}.md`),
     );
     const patterns = await readPatterns(this.context);
-    const level = currentLevel(doc.uri);
-    const language = resolveLanguage(
-      vscode.workspace.getConfiguration('adviser', doc.uri).get<string>('language'),
-      vscode.env.language,
-    );
+    const { level } = settings;
+    const language = resolveLanguage(settings.language, vscode.env.language);
     const request = buildPrompt(template, {
       languageId: doc.languageId,
       code,
@@ -80,7 +86,7 @@ export class Reviewer {
       this.log.info(`${source}: ${where} — ответ из кэша`);
       return signal?.aborted
         ? { kind: 'aborted' }
-        : { kind: 'reviewed', review: cached, cached: true };
+        : { kind: 'reviewed', review: shown(cached, settings), cached: true };
     }
 
     this.log.info(`${source}: разбор ${where}, уровень ${level}, язык ${language}`);
@@ -104,9 +110,15 @@ export class Reviewer {
       `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')})`,
     );
     this.cache.set(key, review);
-    return { kind: 'reviewed', review, cached: false };
+    return { kind: 'reviewed', review: shown(review, settings), cached: false };
   }
 }
+
+/** В кэше — полный ответ, а фильтры проекта применяем при показе: их можно поменять на ходу. */
+const shown = (review: Review, settings: Settings): Review => ({
+  ...review,
+  issues: filterIssues(review.issues, settings),
+});
 
 /** Замечания разобранного диапазона — в подчёркивания и hover; прежние в этом диапазоне уходят. */
 export function showReview(
