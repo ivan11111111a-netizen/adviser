@@ -56,6 +56,11 @@ suite('Настройки проекта', () => {
       const { system, prompt } = api.lastMockRequest()!;
       assert.match(system, /Между тегами <context>/);
       assert.match(prompt, /<context>\nЗависимости проекта: lodash \^4\.17\.21\n<\/context>/);
+      // Правила проекта — в системной части, как данные в своих тегах.
+      assert.match(
+        system,
+        /<rules>\n### \.adviser\/rules\.md\nИмена функций — глаголом: getTotal, а не total\.\n<\/rules>/,
+      );
     } finally {
       await config.update('dev.prompt', undefined, vscode.ConfigurationTarget.Global);
     }

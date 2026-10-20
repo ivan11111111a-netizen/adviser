@@ -119,20 +119,41 @@ test('окружение уходит, только если промпт объ
   expect(buildPrompt(parseTemplate('Наставник.'), input).prompt).not.toContain('<context>');
 });
 
+test('правила проекта подставляются как есть: их {{…}} не разворачиваются', () => {
+  const template = parseTemplate(
+    'Наставник.\n{{rules}}\n\n## rules: none\n\n## rules: some\n<rules>\n{{projectRules}}\n</rules>\n',
+  );
+  const input = {
+    languageId: 'javascript',
+    code: '',
+    level: 'beginner' as const,
+    language: 'ru' as const,
+    patterns: PATTERNS,
+  };
+  expect(
+    buildPrompt(template, { ...input, rules: 'Не трогай {{level}} и {{unknown}}' }).system,
+  ).toBe('Наставник.\n<rules>\nНе трогай {{level}} и {{unknown}}\n</rules>');
+  expect(buildPrompt(template, input).system).toBe('Наставник.\n');
+});
+
 const PROMPTS = readdirSync('prompts').filter((f) => f.endsWith('.md'));
 
 test.each(PROMPTS)('prompts/%s собирается для всех уровней, языков и профилей', (file) => {
   const template = parseTemplate(readFileSync(`prompts/${file}`, 'utf8'));
   for (const level of LEVELS) {
     for (const language of ADVICE_LANGUAGES) {
-      for (const profile of [[], [{ patternId: 'off-by-one', count: 2 }]]) {
+      for (const [profile, rules] of [
+        [[], undefined],
+        [[{ patternId: 'off-by-one', count: 2 }], 'Имена — на английском.'],
+      ] as const) {
         const { system } = buildPrompt(template, {
           languageId: 'js',
           code: '',
           level,
           language,
           patterns: PATTERNS,
-          profile,
+          profile: [...profile],
+          rules,
         });
         expect(system).toContain(template.sections.level[level]);
         expect(system).toContain(template.sections.language[language]);

@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import type { LineRange } from '../core/codeRange';
 import { buildContext, npmDependencies, pythonRequirements } from '../core/contextBuilder';
+import type { Settings } from '../core/projectConfig';
+import { AGENT_FILES, renderRules, RULES_FILE } from '../core/rules';
 import { documentSymbols } from './symbols';
 
 /** Окружение функции для промпта: замечания инструментов, скелет файла, зависимости проекта. */
@@ -28,6 +30,27 @@ export async function collectContext(doc: vscode.TextDocument, range: LineRange)
     diagnostics,
     dependencies,
   });
+}
+
+/** Правила стиля из корня проекта: .adviser/rules.md и, если включено, файлы для ИИ-агентов. */
+export async function readRules(doc: vscode.TextDocument, settings: Settings): Promise<string> {
+  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  if (!folder) {
+    return '';
+  }
+  const names = [RULES_FILE, ...(settings.readAgentFiles ? AGENT_FILES : [])];
+  const files = await Promise.all(
+    names.map(async (name) => {
+      try {
+        const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(folder.uri, name));
+        return [{ name, text: new TextDecoder().decode(bytes) }];
+      } catch {
+        // Файла правил нет — это нормально, их заводят не во всех проектах.
+        return [];
+      }
+    }),
+  );
+  return renderRules(files.flat());
 }
 
 /** Версии зависимостей из корня проекта: package.json или requirements.txt. */

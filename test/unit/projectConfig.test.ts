@@ -56,6 +56,7 @@ describe('mergeSettings', () => {
       minSeverity: 'suggestion',
       hiddenCategories: [],
       ignore: [],
+      readAgentFiles: false,
       fromProject: [],
     });
   });

@@ -15,7 +15,7 @@ import type { Issue, Review } from '../core/reviewSchema';
 import { filterIssues, type Settings } from '../core/projectConfig';
 import { isEnvFile } from '../core/scheduler';
 import { readBundled, readPatterns } from './bundled';
-import { collectContext } from './context';
+import { collectContext, readRules } from './context';
 import type { Findings } from './findings';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
 
@@ -79,6 +79,7 @@ export class Reviewer {
       profile: this.profile(),
       // Окружение собираем, только если промпт знает, что с ним делать.
       context: template.base.includes('<context>') ? await collectContext(doc, range) : undefined,
+      rules: template.base.includes('{{rules}}') ? await readRules(doc, settings) : undefined,
     });
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;

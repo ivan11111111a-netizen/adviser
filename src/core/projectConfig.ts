@@ -70,6 +70,12 @@ export const projectConfigSchema = z
       .partialRecord(z.enum(CATEGORIES), z.boolean())
       .optional()
       .describe('false — не показывать замечания этой категории.'),
+    readAgentFiles: z
+      .boolean()
+      .optional()
+      .describe(
+        'Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.',
+      ),
     ignore: z
       .array(z.string())
       .optional()
@@ -117,6 +123,7 @@ export interface Settings extends UserSettings {
   minSeverity: Severity;
   hiddenCategories: string[];
   ignore: string[];
+  readAgentFiles: boolean;
   /** Какие настройки взяты из проекта — подсказка для статус-бара. */
   fromProject: string[];
 }
@@ -150,6 +157,7 @@ export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): 
     minSeverity: project.minSeverity ?? 'suggestion',
     hiddenCategories: CATEGORIES.filter((c) => project.categories?.[c] === false),
     ignore: project.ignore ?? [],
+    readAgentFiles: project.readAgentFiles ?? false,
     fromProject: Object.keys(project),
   };
 }

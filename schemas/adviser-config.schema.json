@@ -102,6 +102,10 @@
         "type": "boolean"
       }
     },
+    "readAgentFiles": {
+      "description": "Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.",
+      "type": "boolean"
+    },
     "ignore": {
       "description": "Glob-шаблоны файлов от корня проекта, которые Adviser не отправляет: [\"generated/**\"].",
       "type": "array",

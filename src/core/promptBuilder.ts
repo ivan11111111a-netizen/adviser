@@ -43,6 +43,8 @@ export interface PromptInput {
   profile?: { patternId: string; count: number }[];
   /** Окружение функции (buildContext). Уходит, только если промпт объясняет тег <context>. */
   context?: string;
+  /** Правила стиля проекта (renderRules). Нужны, только если в промпте есть {{rules}}. */
+  rules?: string;
 }
 
 const SECTION_HEADING = /^## (\w+): (\S+)[ \t]*$/m;
@@ -76,6 +78,7 @@ export function buildPrompt(template: PromptTemplate, input: PromptInput): Model
     level: input.level,
     language: input.language,
     profile: profile.length ? 'some' : 'none',
+    rules: input.rules ? 'some' : 'none',
   };
   const fill = (text: string): string =>
     text.replace(/\{\{(\w+)\}\}/g, (_, kind: string) => {
@@ -84,6 +87,10 @@ export function buildPrompt(template: PromptTemplate, input: PromptInput): Model
       }
       if (kind === 'topPatterns') {
         return renderProfile(profile, input.patterns, input.language);
+      }
+      if (kind === 'projectRules') {
+        // Текст из репозитория: подставляется как есть, его {{…}} не разворачиваются.
+        return input.rules ?? '';
       }
       const section = template.sections[kind]?.[chosen[kind]];
       if (section === undefined) {
