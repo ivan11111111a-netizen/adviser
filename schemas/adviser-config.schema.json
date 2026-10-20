@@ -7,6 +7,7 @@
       "type": "string",
       "enum": [
         "mentor",
+        "reviewer",
         "manual"
       ]
     },

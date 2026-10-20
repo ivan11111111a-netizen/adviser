@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { MAX_ISSUES } from './engine';
 import { ADVICE_LANGUAGES, LEVELS, type Level } from './promptBuilder';
 import { CATEGORIES, SEVERITIES, type Issue, type Severity } from './reviewSchema';
-import { MENTOR_LIMITS, MODES, type Limits, type Mode } from './scheduler';
+import { MENTOR_LIMITS, MODES, REVIEWER_LIMITS, type Limits, type Mode } from './scheduler';
 
 /**
  * .adviser/config.json — настройки проекта (6.7 плана), лежат в git. Провайдера, адреса сервера
@@ -139,22 +139,25 @@ export const DEFAULT_TRIGGERS: Triggers = { onSave: true, onLeaveFunction: true,
 export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): Settings {
   const limits = project.limits ?? {};
   const triggers = project.triggers ?? {};
+  const mode = user.mode === 'manual' ? 'manual' : (project.mode ?? user.mode);
+  // «Ревьюер» по паузе не разбирает и вмешивается реже (6.2 плана).
+  const base = mode === 'reviewer' ? REVIEWER_LIMITS : MENTOR_LIMITS;
+  const pauseMs = mode === 'reviewer' ? 0 : DEFAULT_TRIGGERS.pauseMs;
   return {
-    mode: user.mode === 'manual' ? 'manual' : (project.mode ?? user.mode),
+    mode,
     level: project.level ?? user.level,
     language: project.language ?? user.language,
     hiddenPatterns: user.hiddenPatterns,
     triggers: {
       onSave: triggers.onSave ?? DEFAULT_TRIGGERS.onSave,
       onLeaveFunction: triggers.onLeaveFunction ?? DEFAULT_TRIGGERS.onLeaveFunction,
-      pauseMs:
-        triggers.idleSeconds === undefined ? DEFAULT_TRIGGERS.pauseMs : triggers.idleSeconds * 1000,
+      pauseMs: triggers.idleSeconds === undefined ? pauseMs : triggers.idleSeconds * 1000,
     },
     limits: {
-      ...MENTOR_LIMITS,
-      cooldownMs: Math.max(MENTOR_LIMITS.cooldownMs, (limits.cooldownMinutes ?? 0) * 60_000),
-      perHour: Math.min(MENTOR_LIMITS.perHour, limits.perHour ?? Infinity),
-      perDay: Math.min(MENTOR_LIMITS.perDay, limits.perDay ?? Infinity),
+      ...base,
+      cooldownMs: Math.max(base.cooldownMs, (limits.cooldownMinutes ?? 0) * 60_000),
+      perHour: Math.min(base.perHour, limits.perHour ?? Infinity),
+      perDay: Math.min(base.perDay, limits.perDay ?? Infinity),
     },
     maxIssues: Math.min(MAX_ISSUES, limits.maxIssuesPerBlock ?? MAX_ISSUES),
     minSeverity: project.minSeverity ?? 'suggestion',

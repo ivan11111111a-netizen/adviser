@@ -1,5 +1,8 @@
-/** Режим автопилота (6.2 плана). Ревьюер и свой режим появятся на этапе 7. */
-export const MODES = ['mentor', 'manual'] as const;
+/**
+ * Режим (6.2 плана): mentor — сам и по ступеням; reviewer — сам, реже и сразу с решением;
+ * manual — только по команде. «Свой» режим — это триггеры и лимиты в .adviser/config.json.
+ */
+export const MODES = ['mentor', 'reviewer', 'manual'] as const;
 export type Mode = (typeof MODES)[number];
 
 export interface Limits {
@@ -18,6 +21,9 @@ export const MENTOR_LIMITS: Limits = {
   perDay: 150,
   perTrigger: 3,
 };
+
+/** «Ревьюер» вмешивается реже: не чаще 6 разборов в час (6.2 плана). */
+export const REVIEWER_LIMITS: Limits = { ...MENTOR_LIMITS, perHour: 6 };
 
 export interface Candidate {
   key: string;

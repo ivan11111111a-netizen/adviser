@@ -409,7 +409,13 @@ export class Autopilot implements vscode.Disposable {
         this.status.setProblem(undefined);
         changes?.reviewed(job.code, now, job.key);
         if (job.range && !job.doc.isClosed) {
-          showReview(this.findings, job.doc, job.range, outcome.review.issues);
+          showReview(
+            this.findings,
+            job.doc,
+            job.range,
+            outcome.review.issues,
+            outcome.presentation,
+          );
         }
         return;
       case 'failed': {

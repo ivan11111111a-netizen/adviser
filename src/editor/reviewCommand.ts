@@ -33,7 +33,7 @@ export async function reviewFunction(
   switch (outcome.kind) {
     case 'reviewed': {
       const { issues } = outcome.review;
-      showReview(findings, doc, range, issues);
+      showReview(findings, doc, range, issues, outcome.presentation);
       onReviewed(doc, code);
       status.flash(issues.length ? `замечаний: ${issues.length}` : 'замечаний нет');
       return;

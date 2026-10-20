@@ -3,8 +3,20 @@ import type { Issue, Severity } from './reviewSchema';
 /** Ступени раскрытия (6.5 плана): 1 — намёк, 2 — объяснение, 3 — код. */
 export type Step = 1 | 2 | 3;
 
-/** Какую ступень видно сразу. Для critical намёк неуместен: код сломан, поэтому сразу объясняем. */
-export function firstStep(severity: Severity): Step {
+/**
+ * Подача: mentor — по ступеням; reviewer — режим «Ревьюер» (6.5 плана): ступеней нет,
+ * сразу объяснение и решение.
+ */
+export type Presentation = 'mentor' | 'reviewer';
+
+/**
+ * Какую ступень видно сразу. Для critical намёк неуместен: код сломан, поэтому сразу объясняем.
+ * Ревьюеру — всё сразу.
+ */
+export function firstStep(severity: Severity, presentation: Presentation = 'mentor'): Step {
+  if (presentation === 'reviewer') {
+    return 3;
+  }
   return severity === 'critical' ? 2 : 1;
 }
 
@@ -13,9 +25,14 @@ export function reveal(current: Step, requested: Step): Step {
   return requested > current ? requested : current;
 }
 
-/** Текст подчёркивания и вкладки «Проблемы» — первая ступень: намёк, а для critical объяснение. */
-export function diagnosticText(issue: Issue): string {
-  return firstStep(issue.severity) === 1 ? issue.hint : issue.explanation;
+/**
+ * Текст подчёркивания и вкладки «Проблемы» — первая ступень: намёк, а для critical и ревьюера
+ * объяснение.
+ */
+export function diagnosticText(issue: Issue, presentation: Presentation = 'mentor'): string {
+  return presentation === 'mentor' && issue.severity !== 'critical'
+    ? issue.hint
+    : issue.explanation;
 }
 
 export interface HoverView {
@@ -29,10 +46,15 @@ export interface HoverView {
 }
 
 /** Что показать в hover поверх подчёркивания: открытые ступени после первой и кнопки следующих. */
-export function hoverView(issue: Issue, step: Step): HoverView {
-  const shown = Math.max(step, firstStep(issue.severity)) as Step;
+export function hoverView(
+  issue: Issue,
+  step: Step,
+  presentation: Presentation = 'mentor',
+): HoverView {
+  const shown = Math.max(step, firstStep(issue.severity, presentation)) as Step;
+  const inUnderline = diagnosticText(issue, presentation) === issue.explanation;
   return {
-    explanation: shown >= 2 && firstStep(issue.severity) < 2 ? issue.explanation : undefined,
+    explanation: shown >= 2 && !inUnderline ? issue.explanation : undefined,
     readMore: shown >= 2 && issue.readMore?.startsWith('https://') ? issue.readMore : undefined,
     fix: shown >= 3 ? issue.fix : undefined,
     actions: ([2, 3] as const).filter((s) => s > shown),

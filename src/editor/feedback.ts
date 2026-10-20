@@ -31,7 +31,10 @@ export function feedbackActions(
       return here.flatMap((finding) => {
         const { issue } = finding;
         // Несколько замечаний в одном месте — подписываем, к какому относится действие.
-        const quote = here.length > 1 ? ` («${shortQuote(diagnosticText(issue), 40)}»)` : '';
+        const quote =
+          here.length > 1
+            ? ` («${shortQuote(diagnosticText(issue, finding.presentation), 40)}»)`
+            : '';
         const diagnostics = context.diagnostics.filter(
           (d) => d.source === 'Adviser' && d.code === issue.patternId,
         );

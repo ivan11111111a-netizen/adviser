@@ -29,6 +29,17 @@ describe('первая ступень', () => {
   });
 });
 
+test('ревьюер: всё сразу — объяснение в подчёркивании, решение в hover, кнопок нет', () => {
+  expect(firstStep('suggestion', 'reviewer')).toBe(3);
+  expect(diagnosticText(issue(), 'reviewer')).toBe(issue().explanation);
+  expect(hoverView(issue(), 1, 'reviewer')).toEqual({
+    explanation: undefined,
+    readMore: 'https://developer.mozilla.org/ru/',
+    fix: issue().fix,
+    actions: [],
+  });
+});
+
 test('ступени не закрываются обратно', () => {
   expect(reveal(1, 2)).toBe(2);
   expect(reveal(1, 3)).toBe(3);

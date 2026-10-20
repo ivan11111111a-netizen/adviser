@@ -36,14 +36,14 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
       }
       const sections = here.map((finding) => {
         const { issue, languageId } = finding;
-        const view = hoverView(issue, finding.step);
+        const view = hoverView(issue, finding.step, finding.presentation);
         const md = new vscode.MarkdownString();
         // Ссылки-команды работают только для своих команд: текст модели не запустит чужую.
         md.isTrusted = { enabledCommands: [REVEAL_COMMAND, OPEN_CASE_COMMAND] };
         if (here.length > 1) {
           // Подчёркивания пересекаются — подписываем, к какому из них относятся кнопки.
           md.appendMarkdown('_«');
-          md.appendText(shortQuote(diagnosticText(issue)));
+          md.appendText(shortQuote(diagnosticText(issue, finding.presentation)));
           md.appendMarkdown('»_\n\n');
         }
         const entry = journal.get(finding.id);

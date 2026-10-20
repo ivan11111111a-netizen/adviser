@@ -14,6 +14,12 @@ const MODE_TEXT: Record<Mode, { icon: string; title: string; detail: string }> =
     title: 'Наставник',
     detail: 'Сам разбирает изменённые функции: при сохранении, уходе из функции и после паузы',
   },
+  reviewer: {
+    icon: '$(checklist)',
+    title: 'Ревьюер',
+    detail:
+      'Сам разбирает изменённые функции при сохранении и уходе из функции, не чаще 6 раз в час; сразу объяснение и решение, без намёков',
+  },
   manual: {
     icon: '$(eye-closed)',
     title: 'Вручную',

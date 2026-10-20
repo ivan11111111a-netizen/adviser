@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { createProvider } from '../config/provider';
 import { cacheKey, LruCache } from '../core/cache';
 import { toFileLines, type LineRange } from '../core/codeRange';
+import type { Presentation } from '../core/disclosure';
 import { runReview } from '../core/engine';
 import { normalizePatternIds, patternsFor } from '../core/patterns';
 import {
@@ -22,7 +23,7 @@ import { CONFIG_PATH, type ProjectSettings } from './settings';
 import type { UsageTracker } from './usage';
 
 export type Outcome =
-  | { kind: 'reviewed'; review: Review; cached: boolean }
+  | { kind: 'reviewed'; review: Review; cached: boolean; presentation: Presentation }
   /** Разбирать нельзя: провайдер не настроен или файл не отправляется. message — для статус-бара. */
   | { kind: 'refused'; message: string }
   | { kind: 'failed'; error: string; invalid: boolean }
@@ -101,7 +102,12 @@ export class Reviewer {
       this.log.info(`${source}: ${where} — ответ из кэша`);
       return signal?.aborted
         ? { kind: 'aborted' }
-        : { kind: 'reviewed', review: shown(cached, settings), cached: true };
+        : {
+            kind: 'reviewed',
+            review: shown(cached, settings),
+            cached: true,
+            presentation: presentationOf(settings),
+          };
     }
 
     // Лимит в деньгах проверяем после кэша: ответ из кэша бесплатный.
@@ -138,7 +144,12 @@ export class Reviewer {
       `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')}${tokens})`,
     );
     this.cache.set(key, review);
-    return { kind: 'reviewed', review: shown(review, settings), cached: false };
+    return {
+      kind: 'reviewed',
+      review: shown(review, settings),
+      cached: false,
+      presentation: presentationOf(settings),
+    };
   }
 
   /** Другой файл, который попадает в окружение: те же правила, что и для разбираемого. */
@@ -164,12 +175,17 @@ const shown = (review: Review, settings: Settings): Review => ({
   issues: filterIssues(review.issues, settings),
 });
 
+/** В режиме «Ревьюер» ступеней нет — всё сразу; в остальных — по ступеням. */
+const presentationOf = (settings: Settings): Presentation =>
+  settings.mode === 'reviewer' ? 'reviewer' : 'mentor';
+
 /** Замечания разобранного диапазона — в подчёркивания и hover; прежние в этом диапазоне уходят. */
 export function showReview(
   findings: Findings,
   doc: vscode.TextDocument,
   range: LineRange,
   issues: Issue[],
+  presentation: Presentation,
 ) {
   findings.replace(
     doc.uri,
@@ -179,6 +195,7 @@ export function showReview(
       return {
         issue,
         languageId: doc.languageId,
+        presentation,
         range: new vscode.Range(
           lines.start,
           doc.lineAt(lines.start).firstNonWhitespaceCharacterIndex,

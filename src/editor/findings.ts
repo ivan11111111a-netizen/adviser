@@ -1,7 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import * as vscode from 'vscode';
 import type { LineRange } from '../core/codeRange';
-import { diagnosticText, firstStep, reveal, type Step } from '../core/disclosure';
+import {
+  diagnosticText,
+  firstStep,
+  reveal,
+  type Presentation,
+  type Step,
+} from '../core/disclosure';
 import { trackRange } from '../core/changes';
 import { matchByPattern, openCasesIn } from '../core/journal';
 import type { Issue, Severity } from '../core/reviewSchema';
@@ -12,6 +18,8 @@ export interface NewFinding {
   range: vscode.Range;
   issue: Issue;
   languageId: string;
+  /** «Ревьюер» показывает всё сразу (6.5 плана). */
+  presentation: Presentation;
 }
 
 export interface Finding extends NewFinding {
@@ -67,7 +75,7 @@ export class Findings implements vscode.Disposable {
     const now = Date.now();
     const added = findings.map((f, i): Finding => {
       const before = matched[i];
-      const step = reveal(before?.step ?? 1, firstStep(f.issue.severity));
+      const step = reveal(before?.step ?? 1, firstStep(f.issue.severity, f.presentation));
       // На случай уже ответили «понял» или «не согласен» — новый разбор его не возвращает.
       const answered = before !== undefined && this.journal.get(before.id)?.feedback !== undefined;
       const finding = {
@@ -85,7 +93,7 @@ export class Findings implements vscode.Disposable {
           languageId: f.languageId,
           file: uri.toString(),
           line: f.range.start.line,
-          text: diagnosticText(f.issue),
+          text: diagnosticText(f.issue, f.presentation),
           at: now,
           step,
         });
@@ -211,8 +219,12 @@ function hoverRange({ range, issue }: Finding) {
     : range;
 }
 
-function toDiagnostic({ range, issue }: Finding) {
-  const d = new vscode.Diagnostic(range, diagnosticText(issue), SEVERITY[issue.severity]);
+function toDiagnostic({ range, issue, presentation }: Finding) {
+  const d = new vscode.Diagnostic(
+    range,
+    diagnosticText(issue, presentation),
+    SEVERITY[issue.severity],
+  );
   d.source = 'Adviser';
   d.code = issue.patternId;
   return d;

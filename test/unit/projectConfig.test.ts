@@ -101,6 +101,13 @@ describe('mergeSettings', () => {
     expect(strict.maxIssues).toBe(1);
   });
 
+  test('«Ревьюер»: 6 разборов в час, по паузе не разбирает', () => {
+    const s = mergeSettings({ ...user, mode: 'reviewer' });
+    expect(s.limits.perHour).toBe(6);
+    expect(s.triggers).toEqual({ onSave: true, onLeaveFunction: true, pauseMs: 0 });
+    expect(mergeSettings(user, { mode: 'reviewer' }).limits.perHour).toBe(6);
+  });
+
   test('проект может выключить автопилот, но не включить его тому, кто выбрал «Вручную»', () => {
     expect(mergeSettings(user, { mode: 'manual' }).mode).toBe('manual');
     expect(mergeSettings({ ...user, mode: 'manual' }, { mode: 'mentor' }).mode).toBe('manual');

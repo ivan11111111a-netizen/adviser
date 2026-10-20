@@ -50,4 +50,28 @@ suite('Разбор функции', () => {
     await click(text, 'Объяснить');
     assert.match(await hoverText(doc.uri, dots), /Mock-объяснение совета/);
   });
+
+  test('«Ревьюер»: в подчёркивании объяснение, в hover сразу решение, кнопок нет', async () => {
+    const config = vscode.workspace.getConfiguration('adviser');
+    await config.update('mode', 'reviewer', vscode.ConfigurationTarget.Global);
+    try {
+      const doc = await vscode.workspace.openTextDocument({
+        language: 'javascript',
+        content: 'function second(items) {\n  return items[1].price;\n}\n',
+      });
+      const editor = await vscode.window.showTextDocument(doc);
+      editor.selection = new vscode.Selection(1, 2, 1, 2);
+      await vscode.commands.executeCommand('adviser.reviewFunction');
+
+      const warning = vscode.languages
+        .getDiagnostics(doc.uri)
+        .find((d) => d.code === 'empty-collection')!;
+      assert.match(warning.message, /Mock-объяснение/);
+      const text = await hoverText(doc.uri, new vscode.Position(1, 5));
+      assert.match(text, /исправленный код/);
+      assert.doesNotMatch(text, /\[Объяснить\]|\[Показать решение\]/);
+    } finally {
+      await config.update('mode', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
 });
