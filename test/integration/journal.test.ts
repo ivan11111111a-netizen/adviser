@@ -13,6 +13,7 @@ interface Entry {
   file: string;
   line: number;
   resolvedAt?: number;
+  feedback?: string;
 }
 type Node = { kind: string; patternId?: string };
 interface TestApi {
@@ -86,6 +87,50 @@ suite('Журнал ошибок', () => {
     await vscode.commands.executeCommand('adviser.reviewFunction');
     assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);
     assert.strictEqual(api.journal.all().length, before, 'новых случаев нет — это те же');
+  });
+
+  test('лампочка: «понял» прячет замечание и пишет ответ в журнал, «не показывать» скрывает тип', async () => {
+    const { doc } = await reviewNew();
+    const at = new vscode.Range(1, 5, 1, 5);
+    const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+      'vscode.executeCodeActionProvider',
+      doc.uri,
+      at,
+    );
+    const titles = actions.map((a) => a.title);
+    assert.ok(titles.includes('Adviser: понял'), titles.join(', '));
+    assert.ok(
+      titles.includes('Adviser: больше не показывать «не учтён пустой список, массив или строка»'),
+    );
+
+    const understood = actions.find((a) => a.title === 'Adviser: понял')!.command!;
+    await vscode.commands.executeCommand(understood.command, ...understood.arguments!);
+    const id = (understood.arguments![0] as { id: string }).id;
+    assert.strictEqual(api.journal.get(id)?.feedback, 'understood');
+    assert.deepStrictEqual(
+      vscode.languages.getDiagnostics(doc.uri).map((d) => d.code),
+      ['unclear-name'],
+    );
+    // Повторный разбор того же кода ответ помнит: замечание не возвращается.
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 1);
+
+    const config = vscode.workspace.getConfiguration('adviser');
+    try {
+      await vscode.commands.executeCommand('adviser.hidePattern', { patternId: 'unclear-name' });
+      // Объект настроек — снимок: после update его надо взять заново.
+      assert.deepStrictEqual(vscode.workspace.getConfiguration('adviser').get('hiddenPatterns'), [
+        'unclear-name',
+      ]);
+      assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+      const { doc: next } = await reviewNew();
+      assert.deepStrictEqual(
+        vscode.languages.getDiagnostics(next.uri).map((d) => d.code),
+        ['empty-collection'],
+      );
+    } finally {
+      await config.update('hiddenPatterns', undefined, vscode.ConfigurationTarget.Global);
+    }
   });
 
   test('в третий раз за неделю hover напоминает о повторе и ведёт к прошлому случаю', async () => {

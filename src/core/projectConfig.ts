@@ -114,6 +114,8 @@ export interface UserSettings {
   level: Level;
   /** auto, ru или en — как в adviser.language. */
   language: string;
+  /** Типы ошибок, о которых человек попросил больше не говорить (adviser.hiddenPatterns). */
+  hiddenPatterns: string[];
 }
 
 export interface Settings extends UserSettings {
@@ -141,6 +143,7 @@ export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): 
     mode: user.mode === 'manual' ? 'manual' : (project.mode ?? user.mode),
     level: project.level ?? user.level,
     language: project.language ?? user.language,
+    hiddenPatterns: user.hiddenPatterns,
     triggers: {
       onSave: triggers.onSave ?? DEFAULT_TRIGGERS.onSave,
       onLeaveFunction: triggers.onLeaveFunction ?? DEFAULT_TRIGGERS.onLeaveFunction,
@@ -162,14 +165,18 @@ export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): 
   };
 }
 
-/** Замечания, которые проект просил не показывать: легче minSeverity, скрытые категории, сверх лимита. */
+/**
+ * Замечания, которые не показываем: легче minSeverity, скрытые проектом категории,
+ * скрытые человеком типы ошибок и всё сверх лимита.
+ */
 export function filterIssues(issues: Issue[], settings: Settings): Issue[] {
   const rank = (s: Severity) => SEVERITIES.indexOf(s);
   return issues
     .filter(
       (i) =>
         rank(i.severity) <= rank(settings.minSeverity) &&
-        !settings.hiddenCategories.includes(i.category),
+        !settings.hiddenCategories.includes(i.category) &&
+        !settings.hiddenPatterns.includes(i.patternId),
     )
     .slice(0, settings.maxIssues);
 }

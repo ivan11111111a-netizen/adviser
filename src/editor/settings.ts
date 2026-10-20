@@ -64,10 +64,12 @@ export class ProjectSettings implements vscode.Disposable {
   get(uri?: vscode.Uri): FileSettings {
     const folder = uri && vscode.workspace.getWorkspaceFolder(uri);
     const loaded = folder ? this.loaded.get(folder.uri.toString()) : undefined;
+    const config = vscode.workspace.getConfiguration('adviser', uri);
     const user = {
       mode: currentMode(),
       level: currentLevel(uri),
-      language: vscode.workspace.getConfiguration('adviser', uri).get<string>('language', 'auto'),
+      language: config.get<string>('language', 'auto'),
+      hiddenPatterns: config.get<string[]>('hiddenPatterns', []),
     };
     const merged = mergeSettings(user, loaded?.config);
     // Новый массив: ignore из mergeSettings — это массив самого конфига, его не трогаем.

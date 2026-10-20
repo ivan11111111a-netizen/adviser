@@ -3,6 +3,14 @@ import { setApiKey } from './config/provider';
 import type { ModelRequest } from './core/engine';
 import { learnerProfile } from './core/journal';
 import { Autopilot } from './editor/autopilot';
+import {
+  Feedback,
+  FEEDBACK_COMMAND,
+  feedbackActions,
+  HIDE_PATTERN_COMMAND,
+  type FeedbackArgs,
+  type HidePatternArgs,
+} from './editor/feedback';
 import { Findings } from './editor/findings';
 import {
   hoverProvider,
@@ -52,6 +60,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     return [];
   });
   const journalView = new JournalView(journal, patterns);
+  const feedback = new Feedback(findings, journal, patterns, status, log);
   context.subscriptions.push(
     log,
     journal,
@@ -78,6 +87,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       revealStep(findings, log, args),
     ),
     vscode.commands.registerCommand(OPEN_CASE_COMMAND, (args?: CaseArgs) => openCase(log, args)),
+    vscode.commands.registerCommand(FEEDBACK_COMMAND, (args?: FeedbackArgs) =>
+      feedback.answer(args),
+    ),
+    vscode.commands.registerCommand(HIDE_PATTERN_COMMAND, (args?: HidePatternArgs) =>
+      feedback.hidePattern(args),
+    ),
+    vscode.languages.registerCodeActionsProvider(
+      [{ scheme: 'file' }, { scheme: 'untitled' }],
+      feedbackActions(findings, patterns),
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+    ),
     vscode.languages.registerHoverProvider(
       [{ scheme: 'file' }, { scheme: 'untitled' }],
       hoverProvider(findings, journal),

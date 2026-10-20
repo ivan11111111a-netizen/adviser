@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   daysAgo,
+  disagreements,
   journalFileSchema,
   learnerProfile,
   masteredPatterns,
@@ -51,6 +52,14 @@ test('mergeJournals: объединение по id, ступени только
   const b = { ...a, step: 1 as const, resolvedAt: now };
   const other = entry('y', 1);
   expect(mergeJournals([a], [b, other])).toEqual([{ ...a, step: 2, resolvedAt: now }, other]);
+});
+
+test('disagreements и ответ при слиянии журналов', () => {
+  const a = entry('magic-number', 1, { id: 'm1', feedback: 'disagree' });
+  const all = [a, entry('magic-number', 2, { feedback: 'understood' }), entry('off-by-one', 1)];
+  expect(disagreements(all, 'magic-number')).toBe(1);
+  expect(mergeJournals([{ ...a, feedback: undefined }], [a])[0].feedback).toBe('disagree');
+  expect(weeklyReport(all, now).disagreed).toBe(1);
 });
 
 test('matchByPattern: тот же тип — тот же случай, лишние прежние — исправлены', () => {

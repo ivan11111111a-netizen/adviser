@@ -29,6 +29,8 @@ export const journalEntrySchema = z.object({
   step: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   /** Замечание пропало при новом разборе изменённого кода — значит, исправлено. */
   resolvedAt: z.number().optional(),
+  /** Ответ человека из лампочки (6.11 плана): «понял» или «не согласен». */
+  feedback: z.enum(['understood', 'disagree']).optional(),
 });
 
 export type JournalEntry = z.infer<typeof journalEntrySchema>;
@@ -55,6 +57,7 @@ export function mergeJournals(a: JournalEntry[], b: JournalEntry[]): JournalEntr
       ...other,
       step: Math.max(other.step, entry.step) as Step,
       resolvedAt: resolved.length ? Math.min(...resolved) : undefined,
+      feedback: other.feedback ?? entry.feedback,
     });
   }
   return [...byId.values()].sort((x, y) => x.at - y.at);
@@ -96,6 +99,13 @@ export function openCasesIn(
       e.line >= lines.start &&
       e.line <= lines.end,
   );
+}
+
+/** С какого «не согласен» по одному типу ошибки предлагать больше его не показывать (6.11 плана). */
+export const OFFER_HIDE_AFTER = 3;
+
+export function disagreements(entries: readonly JournalEntry[], patternId: string): number {
+  return entries.filter((e) => e.patternId === patternId && e.feedback === 'disagree').length;
 }
 
 /** Сколько раз этот тип ошибки уже был за неделю до этого случая, и последний из них. */
@@ -180,6 +190,8 @@ export interface WeeklyReport {
   resolved: number;
   selfSolved: number;
   mastered: PatternCount[];
+  /** Сколько замечаний недели человек отметил «не согласен» — мера шума (раздел 15 плана). */
+  disagreed: number;
   /** Почти всё человек исправляет сам — пора предложить уровень выше (6.7 плана). */
   levelUp: boolean;
 }
@@ -195,10 +207,11 @@ export function weeklyReport(entries: readonly JournalEntry[], now: number): Wee
     (e) => e.resolvedAt !== undefined && e.resolvedAt >= from && e.resolvedAt <= now,
   );
   const selfSolved = resolved.filter((e) => e.step < 3).length;
+  const inWeek = entries.filter((e) => e.at >= from && e.at <= now);
   return {
     from,
     to: now,
-    total: entries.filter((e) => e.at >= from && e.at <= now).length,
+    total: inWeek.length,
     top: week.slice(0, PROFILE_SIZE).map((p) => ({
       ...p,
       previous: previous.find((q) => q.patternId === p.patternId)?.count ?? 0,
@@ -207,6 +220,7 @@ export function weeklyReport(entries: readonly JournalEntry[], now: number): Wee
     resolved: resolved.length,
     selfSolved,
     mastered: masteredPatterns(entries, now),
+    disagreed: inWeek.filter((e) => e.feedback === 'disagree').length,
     levelUp:
       resolved.length >= LEVEL_UP_MIN_RESOLVED && selfSolved / resolved.length >= LEVEL_UP_SHARE,
   };
@@ -234,6 +248,9 @@ export function renderReport(report: WeeklyReport, format: ReportFormat): string
           : '.'),
       '',
     );
+  }
+  if (report.disagreed) {
+    lines.push(`С замечаниями не согласен: ${report.disagreed}.`, '');
   }
   if (report.top.length) {
     lines.push('## Частые ошибки', '', '| Ошибка | За неделю | Неделей раньше |', '|---|---|---|');

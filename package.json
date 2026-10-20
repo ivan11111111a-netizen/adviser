@@ -137,6 +137,14 @@
           "default": "auto",
           "description": "Язык советов."
         },
+        "adviser.hiddenPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Типы ошибок (`patternId` из `patterns/patterns.json`), о которых Adviser больше не говорит. Пополняется из лампочки у замечания: «больше не показывать»."
+        },
         "adviser.provider": {
           "type": "string",
           "enum": [

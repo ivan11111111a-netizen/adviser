@@ -68,7 +68,15 @@ export class Findings implements vscode.Disposable {
     const added = findings.map((f, i): Finding => {
       const before = matched[i];
       const step = reveal(before?.step ?? 1, firstStep(f.issue.severity));
-      const finding = { ...f, uri, id: before?.id ?? randomUUID(), step };
+      // На случай уже ответили «понял» или «не согласен» — новый разбор его не возвращает.
+      const answered = before !== undefined && this.journal.get(before.id)?.feedback !== undefined;
+      const finding = {
+        ...f,
+        uri,
+        id: before?.id ?? randomUUID(),
+        step,
+        hidden: answered || undefined,
+      };
       if (!before) {
         this.journal.record({
           id: finding.id,
@@ -96,6 +104,37 @@ export class Findings implements vscode.Disposable {
     return (this.byUri.get(uri.toString()) ?? [])
       .filter((f) => !f.hidden && hoverRange(f).contains(position))
       .sort((a, b) => a.range.start.compareTo(b.range.start));
+  }
+
+  /** Видимые замечания, которые задевает диапазон: для лампочки. Совет — только у его точек, как в hover. */
+  in(uri: vscode.Uri, range: vscode.Range): Finding[] {
+    return (this.byUri.get(uri.toString()) ?? []).filter(
+      (f) => !f.hidden && hoverRange(f).intersection(range) !== undefined,
+    );
+  }
+
+  /** Прячет замечание: человек ответил «понял» или «не согласен». */
+  hide(id: string): Finding | undefined {
+    for (const list of this.byUri.values()) {
+      const finding = list.find((f) => f.id === id);
+      if (finding) {
+        finding.hidden = true;
+        this.show(finding.uri);
+        return finding;
+      }
+    }
+    return undefined;
+  }
+
+  /** Прячет все замечания этого типа: человек попросил больше его не показывать. */
+  hidePattern(patternId: string) {
+    for (const list of this.byUri.values()) {
+      const matching = list.filter((f) => !f.hidden && f.issue.patternId === patternId);
+      matching.forEach((f) => (f.hidden = true));
+      if (matching.length) {
+        this.show(matching[0].uri);
+      }
+    }
   }
 
   /** Открывает ступень замечания. undefined — замечания уже нет: файл разобран заново. */

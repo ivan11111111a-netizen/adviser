@@ -11,7 +11,12 @@ import type { Issue } from '../../src/core/reviewSchema';
 import { MENTOR_LIMITS } from '../../src/core/scheduler';
 import { mockReview } from '../../src/providers/mock';
 
-const user = { mode: 'mentor' as const, level: 'beginner' as const, language: 'auto' };
+const user = {
+  mode: 'mentor' as const,
+  level: 'beginner' as const,
+  language: 'auto',
+  hiddenPatterns: [] as string[],
+};
 
 describe('parseProjectConfig', () => {
   test('пример из плана разбирается, лишние поля не мешают', () => {
@@ -120,6 +125,9 @@ test('filterIssues: серьёзность, категории, число', () 
     'a',
     'd',
   ]);
+  // Тип, который человек попросил больше не показывать.
+  const hidden = { ...settings, maxIssues: 3, hiddenPatterns: ['d'] };
+  expect(filterIssues(issues, hidden).map((i) => i.patternId)).toEqual(['a']);
 });
 
 test('schemas/adviser-config.schema.json совпадает со схемой (обновить: npx vitest -u)', async () => {
