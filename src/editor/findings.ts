@@ -19,6 +19,11 @@ export interface Finding extends NewFinding {
   id: string;
   uri: vscode.Uri;
   step: Step;
+  /**
+   * Скрыто: код правили после разбора (6.8 плана) или человек ответил на совет.
+   * Скрытое ждёт нового разбора, чтобы случай в журнале продолжился или закрылся.
+   */
+  hidden?: boolean;
 }
 
 // Error не используем никогда: его легко спутать с ошибкой компилятора.
@@ -82,15 +87,14 @@ export class Findings implements vscode.Disposable {
     for (const f of resolved) {
       this.journal.update(f.id, { resolvedAt: now });
     }
-    const next = [...all.filter(outside), ...added];
-    this.byUri.set(uri.toString(), next);
-    this.diagnostics.set(uri, next.map(toDiagnostic));
+    this.byUri.set(uri.toString(), [...all.filter(outside), ...added]);
+    this.show(uri);
   }
 
   /** Замечания, текст которых VS Code покажет в hover в этой точке, в том же порядке, что и он. */
   at(uri: vscode.Uri, position: vscode.Position): Finding[] {
     return (this.byUri.get(uri.toString()) ?? [])
-      .filter((f) => hoverRange(f).contains(position))
+      .filter((f) => !f.hidden && hoverRange(f).contains(position))
       .sort((a, b) => a.range.start.compareTo(b.range.start));
   }
 
@@ -105,6 +109,11 @@ export class Findings implements vscode.Disposable {
       }
     }
     return undefined;
+  }
+
+  private show(uri: vscode.Uri) {
+    const visible = (this.byUri.get(uri.toString()) ?? []).filter((f) => !f.hidden);
+    this.diagnostics.set(uri, visible.map(toDiagnostic));
   }
 
   dispose() {
@@ -123,8 +132,16 @@ export class Findings implements vscode.Disposable {
     }
     const doc = e.document;
     const edits = lineEdits(e);
-    let moved = false;
+    let changed = false;
     for (const f of list) {
+      // Правка задела строки замечания — совет мог устареть, прячем его до нового разбора.
+      if (
+        !f.hidden &&
+        edits.some((e) => e.start <= f.range.end.line && e.end >= f.range.start.line)
+      ) {
+        f.hidden = true;
+        changed = true;
+      }
       const lines = trackRange({ start: f.range.start.line, end: f.range.end.line }, edits);
       if (lines.start === f.range.start.line && lines.end === f.range.end.line) {
         continue;
@@ -137,10 +154,10 @@ export class Findings implements vscode.Disposable {
         end,
         doc.lineAt(end).text.length,
       );
-      moved = true;
+      changed = true;
     }
-    if (moved) {
-      this.diagnostics.set(doc.uri, list.map(toDiagnostic));
+    if (changed) {
+      this.show(doc.uri);
     }
   }
 }

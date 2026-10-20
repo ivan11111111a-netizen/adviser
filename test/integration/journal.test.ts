@@ -74,6 +74,20 @@ suite('Журнал ошибок', () => {
     assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
   });
 
+  test('правка строк замечания прячет его до нового разбора, а разбор продолжает тот же случай', async () => {
+    const { doc, editor } = await reviewNew();
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);
+    const before = api.journal.all().length;
+
+    await editor.edit((e) => e.insert(new vscode.Position(1, 24), ' // цена'));
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+    assert.strictEqual((await hoverText(doc.uri, new vscode.Position(1, 5))).trim(), '');
+
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);
+    assert.strictEqual(api.journal.all().length, before, 'новых случаев нет — это те же');
+  });
+
   test('в третий раз за неделю hover напоминает о повторе и ведёт к прошлому случаю', async () => {
     await reviewNew();
     const { doc: previous } = await reviewNew();
