@@ -20,6 +20,16 @@
       "allow": ["empty-collection"]
     },
     {
+      "file": "js/apply-discount.js",
+      "expect": [{ "patterns": ["leftover-debug-output"], "lines": [2, 4] }],
+      "allow": ["missing-input-validation"]
+    },
+    {
+      "file": "py/total-price.py",
+      "expect": [{ "patterns": ["leftover-debug-output"], "lines": [4, 4] }],
+      "allow": ["missing-input-validation"]
+    },
+    {
       "file": "js/is-adult.js",
       "expect": [{ "patterns": ["redundant-boolean"], "lines": [2, 6] }]
     },

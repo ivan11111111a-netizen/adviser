@@ -121,6 +121,13 @@
       }
     },
     {
+      "id": "leftover-debug-output",
+      "title": {
+        "ru": "в коде остался отладочный вывод",
+        "en": "leftover debug output"
+      }
+    },
+    {
       "id": "shadowed-name",
       "title": {
         "ru": "имя перекрывает встроенную функцию или внешнюю переменную",
