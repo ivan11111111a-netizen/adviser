@@ -13,6 +13,7 @@ import {
 } from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
 import { filterIssues, type Settings } from '../core/projectConfig';
+import { redact } from '../core/redact';
 import { isEnvFile } from '../core/scheduler';
 import { readBundled, readPatterns } from './bundled';
 import { collectContext, readRules } from './context';
@@ -70,7 +71,7 @@ export class Reviewer {
     const patterns = await readPatterns(this.context);
     const { level } = settings;
     const language = resolveLanguage(settings.language, vscode.env.language);
-    const request = buildPrompt(template, {
+    const built = buildPrompt(template, {
       languageId: doc.languageId,
       code,
       level,
@@ -83,6 +84,13 @@ export class Reviewer {
         : undefined,
       rules: template.base.includes('{{rules}}') ? await readRules(doc, settings) : undefined,
     });
+    // Секреты маскируем во всём, что уходит: в коде, окружении и правилах проекта.
+    const system = redact(built.system);
+    const prompt = redact(built.prompt);
+    const request = { ...built, system: system.text, prompt: prompt.text };
+    if (system.count + prompt.count) {
+      this.log.info(`скрыто секретов перед отправкой: ${system.count + prompt.count}`);
+    }
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;
     const key = cacheKey(configured.id, request.system, request.prompt);
