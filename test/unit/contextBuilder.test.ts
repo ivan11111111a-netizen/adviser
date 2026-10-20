@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { SymbolKind, type SymbolNode } from '../../src/core/codeRange';
 import {
   buildContext,
+  callSites,
   npmDependencies,
   pythonRequirements,
   skeleton,
@@ -116,6 +117,38 @@ describe('buildContext', () => {
       buildContext({ ...input, lines: ['x'], symbols: [], diagnostics: [], dependencies: {} }),
     ).toBe('');
   });
+});
+
+test('callSites: вызовы в разбираемых строках, без ключевых слов, определений и повторов', () => {
+  const code = [
+    'function total(items) {',
+    '  if (isEmpty(items)) return 0;',
+    '  const sum = items.reduce((s, x) => s + price(x), 0);',
+    '  return round(sum) + round(1);',
+    '}',
+  ];
+  expect(callSites(code, { start: 0, end: 4 }).map((c) => [c.name, c.line, c.character])).toEqual([
+    ['isEmpty', 1, 6],
+    ['reduce', 2, 20],
+    ['price', 2, 41],
+    ['round', 3, 9],
+  ]);
+});
+
+test('buildContext: вызываемые функции из других файлов', () => {
+  expect(
+    buildContext({
+      lines: ['x'],
+      languageId: 'javascript',
+      range: { start: 0, end: 0 },
+      symbols: [],
+      diagnostics: [],
+      dependencies: {},
+      calls: ['utils/money.js:3 | export function round(value, digits = 2) {'],
+    }),
+  ).toBe(
+    'Что функция вызывает из других файлов:\nutils/money.js:3 | export function round(value, digits = 2) {',
+  );
 });
 
 test('npmDependencies: dependencies поверх devDependencies, битый файл — пусто', () => {

@@ -78,7 +78,9 @@ export class Reviewer {
       patterns: patternsFor(patterns, doc.languageId),
       profile: this.profile(),
       // Окружение собираем, только если промпт знает, что с ним делать.
-      context: template.base.includes('<context>') ? await collectContext(doc, range) : undefined,
+      context: template.base.includes('<context>')
+        ? await collectContext(doc, range, (other) => this.canSend(other))
+        : undefined,
       rules: template.base.includes('{{rules}}') ? await readRules(doc, settings) : undefined,
     });
 
@@ -114,6 +116,14 @@ export class Reviewer {
     );
     this.cache.set(key, review);
     return { kind: 'reviewed', review: shown(review, settings), cached: false };
+  }
+
+  /** Другой файл, который попадает в окружение: те же правила, что и для разбираемого. */
+  private canSend(doc: vscode.TextDocument): boolean {
+    const settings = this.settings.get(doc.uri);
+    return (
+      !isEnvFile(doc.uri.fsPath) && !settings.configError && !this.settings.ignored(doc, settings)
+    );
   }
 
   /** Версия промпта. adviser.dev.prompt — чтобы автор погонял черновик в F5, не меняя код. */

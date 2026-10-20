@@ -1,15 +1,26 @@
 import * as vscode from 'vscode';
 import type { LineRange } from '../core/codeRange';
-import { buildContext, npmDependencies, pythonRequirements } from '../core/contextBuilder';
+import {
+  buildContext,
+  callSites,
+  npmDependencies,
+  pythonRequirements,
+} from '../core/contextBuilder';
 import type { Settings } from '../core/projectConfig';
 import { AGENT_FILES, renderRules, RULES_FILE } from '../core/rules';
 import { documentSymbols } from './symbols';
 
-/** Окружение функции для промпта: замечания инструментов, скелет файла, зависимости проекта. */
-export async function collectContext(doc: vscode.TextDocument, range: LineRange): Promise<string> {
-  const [symbols, dependencies] = await Promise.all([
+/** Окружение функции для промпта: замечания инструментов, скелет файла, вызовы, зависимости. */
+export async function collectContext(
+  doc: vscode.TextDocument,
+  range: LineRange,
+  allowed: (doc: vscode.TextDocument) => boolean,
+): Promise<string> {
+  const lines = Array.from({ length: doc.lineCount }, (_, i) => doc.lineAt(i).text);
+  const [symbols, dependencies, calls] = await Promise.all([
     documentSymbols(doc.uri),
     readDependencies(doc),
+    calledFromOtherFiles(doc, lines, range, allowed),
   ]);
   const diagnostics = vscode.languages
     .getDiagnostics(doc.uri)
@@ -21,7 +32,6 @@ export async function collectContext(doc: vscode.TextDocument, range: LineRange)
         d.range.end.line >= range.start,
     )
     .map((d) => ({ line: d.range.start.line, message: d.message, source: d.source }));
-  const lines = Array.from({ length: doc.lineCount }, (_, i) => doc.lineAt(i).text);
   return buildContext({
     lines,
     languageId: doc.languageId,
@@ -29,7 +39,52 @@ export async function collectContext(doc: vscode.TextDocument, range: LineRange)
     symbols,
     diagnostics,
     dependencies,
+    calls,
   });
+}
+
+/**
+ * Первые строки вызываемых функций из других файлов проекта (6.3 плана, пункт 3).
+ * Свой файл уже есть в скелете; зависимости и файлы, которые нельзя отправлять, пропускаем.
+ */
+async function calledFromOtherFiles(
+  doc: vscode.TextDocument,
+  lines: string[],
+  range: LineRange,
+  allowed: (doc: vscode.TextDocument) => boolean,
+): Promise<string[]> {
+  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  if (!folder) {
+    return [];
+  }
+  const found = await Promise.all(
+    callSites(lines, range).map(async ({ line, character }) => {
+      const defs = await vscode.commands.executeCommand<
+        (vscode.Location | vscode.LocationLink)[] | undefined
+      >('vscode.executeDefinitionProvider', doc.uri, new vscode.Position(line, character));
+      const def = defs?.[0];
+      if (!def) {
+        return [];
+      }
+      const uri = 'targetUri' in def ? def.targetUri : def.uri;
+      const at = 'targetUri' in def ? def.targetRange.start.line : def.range.start.line;
+      if (
+        uri.toString() === doc.uri.toString() ||
+        vscode.workspace.getWorkspaceFolder(uri)?.uri.toString() !== folder.uri.toString() ||
+        uri.path.includes('/node_modules/')
+      ) {
+        return [];
+      }
+      const target = await vscode.workspace.openTextDocument(uri);
+      if (!allowed(target)) {
+        return [];
+      }
+      return [
+        `${vscode.workspace.asRelativePath(uri, false)}:${at + 1} | ${target.lineAt(at).text.trim()}`,
+      ];
+    }),
+  );
+  return [...new Set(found.flat())];
 }
 
 /** Правила стиля из корня проекта: .adviser/rules.md и, если включено, файлы для ИИ-агентов. */

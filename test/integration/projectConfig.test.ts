@@ -65,6 +65,42 @@ suite('Настройки проекта', () => {
       await config.update('dev.prompt', undefined, vscode.ConfigurationTarget.Global);
     }
   });
+
+  test('в окружении — вызываемые функции из других файлов, кроме тех, что в ignore', async () => {
+    const api = (await vscode.extensions
+      .getExtension('undefined_publisher.adviser')!
+      .activate()) as TestApi;
+    const config = vscode.workspace.getConfiguration('adviser');
+    await config.update('dev.prompt', 'mentor.v2', vscode.ConfigurationTarget.Global);
+    try {
+      const root = vscode.workspace.workspaceFolders![0].uri.fsPath;
+      const doc = await vscode.workspace.openTextDocument(path.join(root, 'checkout.js'));
+      const editor = await vscode.window.showTextDocument(doc);
+      // Пока TypeScript грузит проект, определение ведёт только на import в этом же файле.
+      for (let i = 0; i < 100; i++) {
+        const defs = await vscode.commands.executeCommand<vscode.LocationLink[]>(
+          'vscode.executeDefinitionProvider',
+          doc.uri,
+          new vscode.Position(5, 9),
+        );
+        if (defs?.[0]?.targetUri.path.endsWith('money.js')) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      editor.selection = new vscode.Selection(4, 2, 4, 2);
+      await vscode.commands.executeCommand('adviser.reviewFunction');
+      const { prompt } = api.lastMockRequest()!;
+      assert.match(
+        prompt,
+        /Что функция вызывает из других файлов:\nutils\/money\.js:1 \| export function round\(value, digits = 2\) \{/,
+      );
+      // Сам import есть в скелете файла, но строки из игнорируемого файла в окружение не идут.
+      assert.doesNotMatch(prompt, /generated\/api\.js:\d/);
+    } finally {
+      await config.update('dev.prompt', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
 });
 
 /** Часть TestApi из src/extension.ts: импортировать его тесты не могут (см. journal.test.ts). */

@@ -12,6 +12,55 @@ export interface ContextInput {
   diagnostics: { line: number; message: string; source?: string }[];
   /** Зависимости проекта: имя → версия. */
   dependencies: Record<string, string>;
+  /** Первые строки функций из других файлов проекта, которые разбираемая функция вызывает. */
+  calls?: string[];
+}
+
+/** Сколько вызываемых функций искать: каждая — запрос к языковому серверу. */
+export const MAX_CALLS = 8;
+
+const NOT_CALLS = new Set([
+  'if',
+  'for',
+  'while',
+  'switch',
+  'catch',
+  'return',
+  'function',
+  'typeof',
+  'await',
+  'new',
+  'super',
+  'def',
+  'print',
+  'elif',
+  'with',
+  'not',
+  'and',
+  'or',
+  'in',
+]);
+
+/** Вызовы в разбираемых строках: имя и где оно впервые встретилось. */
+export function callSites(
+  lines: string[],
+  range: LineRange,
+): { name: string; line: number; character: number }[] {
+  const found = new Map<string, { name: string; line: number; character: number }>();
+  for (let line = range.start; line <= range.end && found.size < MAX_CALLS; line++) {
+    for (const m of (lines[line] ?? '').matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)) {
+      // Определение самой функции и её вложенных — не вызов.
+      const before = lines[line].slice(0, m.index).trimEnd();
+      if (NOT_CALLS.has(m[1]) || found.has(m[1]) || /\b(function|def)$/.test(before)) {
+        continue;
+      }
+      found.set(m[1], { name: m[1], line, character: m.index });
+      if (found.size >= MAX_CALLS) {
+        break;
+      }
+    }
+  }
+  return [...found.values()];
 }
 
 /** Примерно 6 000 токенов на весь запрос (6.3 плана); на окружение — малая часть. */
@@ -74,6 +123,9 @@ export function buildContext(input: ContextInput, budget = CONTEXT_BUDGET): stri
   const files = skeleton(input);
   if (files.length) {
     sections.push(`Остальной файл (без тел функций):\n${files.join('\n')}`);
+  }
+  if (input.calls?.length) {
+    sections.push(`Что функция вызывает из других файлов:\n${input.calls.join('\n')}`);
   }
   const deps = Object.entries(input.dependencies)
     .sort(([a], [b]) => a.localeCompare(b))
