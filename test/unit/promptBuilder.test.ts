@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import {
   ADVICE_LANGUAGES,
@@ -76,21 +76,57 @@ test('без нужного раздела промпт не собираетс�
   ).toThrow(/## level: advanced/);
 });
 
-test(`prompts/${PROMPT_VERSION}.md собирается для всех уровней и языков`, () => {
-  const template = parseTemplate(readFileSync(`prompts/${PROMPT_VERSION}.md`, 'utf8'));
+describe('профиль учащегося', () => {
+  const template = parseTemplate(
+    'Наставник.\n{{profile}}\n\n## profile: none\n\n## profile: some\nЧасто ошибается:\n{{topPatterns}}\n',
+  );
+  const input = {
+    languageId: 'javascript',
+    code: '',
+    level: 'beginner' as const,
+    language: 'ru' as const,
+    patterns: PATTERNS,
+  };
+
+  test('есть частые ошибки — раздел some со списком', () => {
+    const { system } = buildPrompt(template, {
+      ...input,
+      profile: [{ patternId: 'off-by-one', count: 3 }],
+    });
+    expect(system).toBe('Наставник.\nЧасто ошибается:\n- off-by-one — на единицу (×3)');
+  });
+
+  test('ошибки не этого языка и пустой профиль — раздел none', () => {
+    const python = [{ patternId: 'mutable-default-argument', count: 5 }];
+    expect(buildPrompt(template, { ...input, profile: python }).system).toBe('Наставник.\n');
+    expect(buildPrompt(template, input).system).toBe('Наставник.\n');
+  });
+});
+
+const PROMPTS = readdirSync('prompts').filter((f) => f.endsWith('.md'));
+
+test.each(PROMPTS)('prompts/%s собирается для всех уровней, языков и профилей', (file) => {
+  const template = parseTemplate(readFileSync(`prompts/${file}`, 'utf8'));
   for (const level of LEVELS) {
     for (const language of ADVICE_LANGUAGES) {
-      const { system } = buildPrompt(template, {
-        languageId: 'js',
-        code: '',
-        level,
-        language,
-        patterns: PATTERNS,
-      });
-      expect(system).toContain(template.sections.level[level]);
-      expect(system).toContain(template.sections.language[language]);
-      expect(system).toContain(`- off-by-one — ${PATTERNS[0].title[language]}`);
-      expect(system).not.toMatch(/\{\{|^## /m);
+      for (const profile of [[], [{ patternId: 'off-by-one', count: 2 }]]) {
+        const { system } = buildPrompt(template, {
+          languageId: 'js',
+          code: '',
+          level,
+          language,
+          patterns: PATTERNS,
+          profile,
+        });
+        expect(system).toContain(template.sections.level[level]);
+        expect(system).toContain(template.sections.language[language]);
+        expect(system).toContain(`- off-by-one — ${PATTERNS[0].title[language]}`);
+        expect(system).not.toMatch(/\{\{|^## /m);
+      }
     }
   }
+});
+
+test(`текущий промпт ${PROMPT_VERSION} лежит в prompts/`, () => {
+  expect(PROMPTS).toContain(`${PROMPT_VERSION}.md`);
 });

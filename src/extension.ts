@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { setApiKey } from './config/provider';
+import { learnerProfile } from './core/journal';
 import { Autopilot } from './editor/autopilot';
 import { Findings } from './editor/findings';
 import {
@@ -30,7 +31,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   const log = vscode.window.createOutputChannel('Adviser', { log: true });
   journal = await Journal.open(context, log);
   const findings = new Findings(journal);
-  const reviewer = new Reviewer(context, log);
+  const opened = journal;
+  const reviewer = new Reviewer(context, log, () => learnerProfile(opened.all(), Date.now()));
   const status = new StatusBar(context);
   const autopilot = new Autopilot(context, reviewer, findings, status, log);
   // Названия типов ошибок для панели и отчёта. Без них панель покажет id.
@@ -39,7 +41,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     return [];
   });
   const journalView = new JournalView(journal, patterns);
-  const opened = journal;
   context.subscriptions.push(
     log,
     journal,

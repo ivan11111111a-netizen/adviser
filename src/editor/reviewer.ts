@@ -4,7 +4,13 @@ import { cacheKey, LruCache } from '../core/cache';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import { runReview } from '../core/engine';
 import { normalizePatternIds, patternsFor } from '../core/patterns';
-import { buildPrompt, parseTemplate, PROMPT_VERSION, resolveLanguage } from '../core/promptBuilder';
+import {
+  buildPrompt,
+  parseTemplate,
+  PROMPT_VERSION,
+  resolveLanguage,
+  type PromptInput,
+} from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
 import { isEnvFile } from '../core/scheduler';
 import { readBundled, readPatterns } from './bundled';
@@ -26,6 +32,8 @@ export class Reviewer {
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly log: vscode.LogOutputChannel,
+    /** Частые ошибки учащегося из журнала. Идут в промпт, если в нём есть {{profile}}. */
+    private readonly profile: () => PromptInput['profile'],
   ) {}
 
   async review(
@@ -62,6 +70,7 @@ export class Reviewer {
       level,
       language,
       patterns: patternsFor(patterns, doc.languageId),
+      profile: this.profile(),
     });
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;

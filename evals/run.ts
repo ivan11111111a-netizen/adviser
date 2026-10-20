@@ -33,6 +33,9 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
+  --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION})
+  --profile <id,id,…>   профиль учащегося: эти типы ошибок как частые (по 3 раза), если в промпте
+                        есть {{profile}}. Проверка, не начнёт ли модель их выдумывать
   --only <подстрока>    только случаи, в пути которых она есть: --only py/
   --concurrency <n>     сколько запросов сразу, по умолчанию 3
   --rescore <файл.json> взять ответы сохранённого прогона, а не спрашивать модель: пересчитать
@@ -63,6 +66,8 @@ const { values: args } = parseArgs({
     judge: { type: 'string' },
     'base-url': { type: 'string', default: 'https://openrouter.ai/api/v1' },
     language: { type: 'string', default: 'ru' },
+    prompt: { type: 'string', default: PROMPT_VERSION },
+    profile: { type: 'string' },
     only: { type: 'string' },
     concurrency: { type: 'string', default: '3' },
     rescore: { type: 'string' },
@@ -95,7 +100,8 @@ async function review(): Promise<RunRecord> {
     throw new Error(`--language: ${ADVICE_LANGUAGES.join(' или ')}`);
   }
   const provider = createProvider(args.provider!, args.model!);
-  const template = parseTemplate(read('prompts', `${PROMPT_VERSION}.md`));
+  const template = parseTemplate(read('prompts', `${args.prompt}.md`));
+  const profile = args.profile?.split(',').map((patternId) => ({ patternId, count: 3 }));
   const patterns = parsePatterns(JSON.parse(read('patterns', 'patterns.json')));
   const now = new Date();
   // Местное время в имени файла: 20261013-2326.
@@ -105,11 +111,14 @@ async function review(): Promise<RunRecord> {
     .replace(/[-:]/g, '')
     .replace('T', '-');
   const record: RunRecord = {
-    id: `${stamp}-${args.provider}-${args.model}`.replace(/[^\w.-]+/g, '_'),
+    id: `${stamp}-${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
+      /[^\w.-]+/g,
+      '_',
+    ),
     date: now.toLocaleString('ru-RU'),
     provider: args.provider!,
     model: args.model!,
-    prompt: PROMPT_VERSION,
+    prompt: profile ? `${args.prompt}, профиль: ${args.profile}` : args.prompt!,
     language,
     results: [],
   };
@@ -123,6 +132,7 @@ async function review(): Promise<RunRecord> {
       level: evalCase.level ?? 'beginner',
       language,
       patterns: patternsFor(patterns, languageId),
+      profile,
     });
     const started = Date.now();
     const result = await runReview(provider, request);

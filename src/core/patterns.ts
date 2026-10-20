@@ -49,6 +49,20 @@ export function renderPatterns(patterns: Pattern[], language: AdviceLanguage): s
   return patterns.map((p) => `- ${p.id} — ${p.title[language]}`).join('\n');
 }
 
+/** Частые ошибки учащегося для промпта: тип, название и сколько раз за три недели. */
+export function renderProfile(
+  profile: { patternId: string; count: number }[],
+  patterns: Pattern[],
+  language: AdviceLanguage,
+): string {
+  return profile
+    .map((p) => {
+      const title = patterns.find((q) => q.id === p.patternId)?.title[language];
+      return `- ${p.patternId}${title ? ` — ${title}` : ''} (×${p.count})`;
+    })
+    .join('\n');
+}
+
 /**
  * id не из списка заменяется на other: на этих id держится журнал повторов, и придуманные
  * моделью варианты (empty-array-division, empty-array-average) разбили бы один паттерн на несколько.
