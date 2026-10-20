@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { diagnosticText, hoverView, shortQuote, type Step } from '../core/disclosure';
 import { REMIND_FROM, repeatsOf } from '../core/journal';
+import { plural } from '../core/plural';
 import type { Findings } from './findings';
 import type { Journal } from './journal';
 
@@ -21,13 +22,6 @@ const LABEL: Record<Exclude<Step, 1>, string> = { 2: 'Объяснить', 3: '�
 
 const link = (label: string, command: string, args: unknown) =>
   `[${label}](command:${command}?${encodeURIComponent(JSON.stringify([args]))})`;
-
-/** 1 раз, 2 раза, 5 раз, 22 раза. */
-function times(n: number) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  return mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'раза' : 'раз';
-}
 
 /**
  * Hover дополняет подчёркивание: первую ступень VS Code показывает сам (это текст диагностики),
@@ -57,7 +51,7 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
         if (repeats.count >= REMIND_FROM && repeats.last) {
           const { file, line } = repeats.last;
           md.appendMarkdown(
-            `_Ты так уже делал ${repeats.count} ${times(repeats.count)} на этой неделе._ ` +
+            `_Ты так уже делал ${repeats.count} ${plural(repeats.count, 'раз', 'раза', 'раз')} на этой неделе._ ` +
               `${link('Прошлый случай', OPEN_CASE_COMMAND, { file, line } satisfies CaseArgs)}\n\n`,
           );
         }

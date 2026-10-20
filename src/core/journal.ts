@@ -98,6 +98,15 @@ export function repeatsOf(
   return { count: before.length, last: before[before.length - 1] };
 }
 
+/** Сколько календарных дней назад было at, по местному времени: 0 — сегодня, 1 — вчера. */
+export function daysAgo(at: number, now: number): number {
+  const day = (t: number) => {
+    const d = new Date(t);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY;
+  };
+  return day(now) - day(at);
+}
+
 export interface PatternCount {
   patternId: string;
   count: number;

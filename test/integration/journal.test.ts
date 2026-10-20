@@ -14,8 +14,10 @@ interface Entry {
   line: number;
   resolvedAt?: number;
 }
+type Node = { kind: string; patternId?: string };
 interface TestApi {
   journal: { all(): readonly Entry[]; get(id: string): Entry | undefined };
+  journalView: vscode.TreeDataProvider<Node>;
 }
 
 /** Разбор командой новой безымянной функции; mock даёт empty-collection на строке 2 и unclear-name. */
@@ -83,5 +85,33 @@ suite('Журнал ошибок', () => {
     const editor = vscode.window.activeTextEditor!;
     assert.strictEqual(editor.document.uri.toString(), previous.uri.toString());
     assert.strictEqual(editor.selection.active.line, 1);
+  });
+
+  test('панель: неделя, частые ошибки со случаями; отчёт открывается предпросмотром', async () => {
+    const view = api.journalView;
+    const roots = (await view.getChildren())!;
+    assert.deepStrictEqual(
+      roots.map((n) => n.kind),
+      ['week', 'group', 'group'],
+    );
+    const frequent = (await view.getChildren(roots[1]))!;
+    const pattern = frequent.find((n) => n.patternId === 'empty-collection');
+    assert.ok(pattern, 'empty-collection среди частых');
+    assert.strictEqual(
+      (await view.getTreeItem(pattern)).label,
+      'не учтён пустой список, массив или строка',
+    );
+    const cases = (await view.getChildren(pattern))!;
+    assert.ok(cases.length >= 3);
+    const item = await view.getTreeItem(cases[0]);
+    assert.strictEqual(item.command?.command, 'adviser.openCase');
+
+    await vscode.commands.executeCommand('adviser.weeklyReport');
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const tabs = vscode.window.tabGroups.all.flatMap((g) => g.tabs.map((t) => t.label));
+    assert.ok(
+      tabs.some((label) => label.includes('report.md')),
+      `нет вкладки отчёта: ${tabs.join(', ')}`,
+    );
   });
 });

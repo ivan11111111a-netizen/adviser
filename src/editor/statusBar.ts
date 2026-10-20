@@ -139,11 +139,19 @@ export async function showMenu(
         label: '$(play) Разобрать эту функцию',
         run: () => vscode.commands.executeCommand('adviser.reviewFunction'),
       },
+      {
+        label: '$(book) Журнал ошибок',
+        run: () => vscode.commands.executeCommand('adviser.journal.focus'),
+      },
+      {
+        label: '$(graph) Отчёт за неделю',
+        run: () => vscode.commands.executeCommand('adviser.weeklyReport'),
+      },
       separator,
       ...modes,
       separator,
       ...quiet,
-      { label: '$(output) Журнал Adviser', run: () => log.show() },
+      { label: '$(output) Лог', description: 'Output → Adviser', run: () => log.show() },
     ],
     { title: 'Adviser' },
   );

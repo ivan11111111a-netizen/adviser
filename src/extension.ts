@@ -11,7 +11,9 @@ import {
   type CaseArgs,
   type RevealArgs,
 } from './editor/hover';
+import { readPatterns } from './editor/bundled';
 import { Journal } from './editor/journal';
+import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
 import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
@@ -19,6 +21,7 @@ import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
 /** Что видят интеграционные тесты. Только в режиме тестов: журнал не отдаём другим расширениям. */
 export interface TestApi {
   journal: Journal;
+  journalView: JournalView;
 }
 
 let journal: Journal | undefined;
@@ -30,12 +33,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   const reviewer = new Reviewer(context, log);
   const status = new StatusBar(context);
   const autopilot = new Autopilot(context, reviewer, findings, status, log);
+  // Названия типов ошибок для панели и отчёта. Без них панель покажет id.
+  const patterns = await readPatterns(context).catch((e: unknown) => {
+    log.warn(`patterns.json не прочитан: ${String(e)}`);
+    return [];
+  });
+  const journalView = new JournalView(journal, patterns);
+  const opened = journal;
   context.subscriptions.push(
     log,
     journal,
     findings,
     status,
     autopilot,
+    journalView,
+    vscode.window.createTreeView('adviser.journal', { treeDataProvider: journalView }),
+    vscode.commands.registerCommand(REPORT_COMMAND, () =>
+      showWeeklyReport(context, opened, patterns),
+    ),
     vscode.commands.registerCommand('adviser.reviewFunction', () =>
       reviewFunction(reviewer, findings, status, log, (doc, code) =>
         autopilot.reviewedByCommand(doc, code),
@@ -53,7 +68,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       hoverProvider(findings, journal),
     ),
   );
-  return context.extensionMode === vscode.ExtensionMode.Test ? { journal } : undefined;
+  return context.extensionMode === vscode.ExtensionMode.Test ? { journal, journalView } : undefined;
 }
 
 /** Журнал пишется с задержкой — дописываем то, что не успело уйти на диск. */

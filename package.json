@@ -39,6 +39,12 @@
         "command": "adviser.showMenu",
         "title": "Режим и «Не беспокоить»",
         "category": "Adviser"
+      },
+      {
+        "command": "adviser.weeklyReport",
+        "title": "Отчёт за неделю",
+        "category": "Adviser",
+        "icon": "$(graph)"
       }
     ],
     "menus": {
@@ -47,8 +53,38 @@
           "command": "adviser.reviewFunction",
           "group": "adviser"
         }
+      ],
+      "view/title": [
+        {
+          "command": "adviser.weeklyReport",
+          "when": "view == adviser.journal",
+          "group": "navigation"
+        }
       ]
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "adviser",
+          "title": "Adviser",
+          "icon": "media/adviser.svg"
+        }
+      ]
+    },
+    "views": {
+      "adviser": [
+        {
+          "id": "adviser.journal",
+          "name": "Журнал"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "adviser.journal",
+        "contents": "Здесь появятся твои частые ошибки, недельный отчёт и то, что ты уже освоил.\n\nЖурнал хранится только на этом компьютере и никуда не отправляется.\n\n[Разобрать эту функцию](command:adviser.reviewFunction)"
+      }
+    ],
     "configuration": {
       "title": "Adviser",
       "properties": {

@@ -1,5 +1,11 @@
 import * as vscode from 'vscode';
+import { LEVELS, type Level } from '../core/promptBuilder';
 import { MODES, type Mode } from '../core/scheduler';
+
+export function currentLevel(scope?: vscode.Uri): Level {
+  const value = vscode.workspace.getConfiguration('adviser', scope).get<string>('level');
+  return LEVELS.find((l) => l === value) ?? 'beginner';
+}
 
 export function currentMode(): Mode {
   const value = vscode.workspace.getConfiguration('adviser').get<string>('mode');
@@ -28,5 +34,6 @@ export async function setDoNotDisturb(context: vscode.ExtensionContext, minutes?
   await context.globalState.update(DND_KEY, minutes ? Date.now() + minutes * 60_000 : undefined);
 }
 
+/** Время для подсказок. Интерфейс пока только русский, поэтому и формат русский: 15:30, а не 3:30 PM. */
 export const clock = (time: number) =>
-  new Date(time).toLocaleTimeString(vscode.env.language, { hour: '2-digit', minute: '2-digit' });
+  new Date(time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });

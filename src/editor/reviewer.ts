@@ -3,17 +3,13 @@ import { createProvider } from '../config/provider';
 import { cacheKey, LruCache } from '../core/cache';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import { runReview } from '../core/engine';
-import { normalizePatternIds, parsePatterns, patternsFor } from '../core/patterns';
-import {
-  buildPrompt,
-  LEVELS,
-  parseTemplate,
-  PROMPT_VERSION,
-  resolveLanguage,
-} from '../core/promptBuilder';
+import { normalizePatternIds, patternsFor } from '../core/patterns';
+import { buildPrompt, parseTemplate, PROMPT_VERSION, resolveLanguage } from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
 import { isEnvFile } from '../core/scheduler';
+import { readBundled, readPatterns } from './bundled';
 import type { Findings } from './findings';
+import { currentLevel } from './mode';
 
 export type Outcome =
   | { kind: 'reviewed'; review: Review; cached: boolean }
@@ -51,11 +47,15 @@ export class Reviewer {
     }
 
     // Читаем при каждом разборе: в F5 правка промпта видна без перезапуска.
-    const template = parseTemplate(await this.readBundled('prompts', `${PROMPT_VERSION}.md`));
-    const patterns = parsePatterns(JSON.parse(await this.readBundled('patterns', 'patterns.json')));
-    const config = vscode.workspace.getConfiguration('adviser', doc.uri);
-    const level = LEVELS.find((l) => l === config.get<string>('level')) ?? 'beginner';
-    const language = resolveLanguage(config.get<string>('language'), vscode.env.language);
+    const template = parseTemplate(
+      await readBundled(this.context, 'prompts', `${PROMPT_VERSION}.md`),
+    );
+    const patterns = await readPatterns(this.context);
+    const level = currentLevel(doc.uri);
+    const language = resolveLanguage(
+      vscode.workspace.getConfiguration('adviser', doc.uri).get<string>('language'),
+      vscode.env.language,
+    );
     const request = buildPrompt(template, {
       languageId: doc.languageId,
       code,
@@ -96,13 +96,6 @@ export class Reviewer {
     );
     this.cache.set(key, review);
     return { kind: 'reviewed', review, cached: false };
-  }
-
-  /** Файл из папки расширения: промпты и patterns.json едут внутри .vsix. */
-  private async readBundled(...path: string[]) {
-    return new TextDecoder().decode(
-      await vscode.workspace.fs.readFile(vscode.Uri.joinPath(this.context.extensionUri, ...path)),
-    );
   }
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  daysAgo,
   journalFileSchema,
   learnerProfile,
   masteredPatterns,
@@ -35,6 +36,13 @@ test('схема файла журнала', () => {
   expect(
     journalFileSchema.safeParse({ version: 1, entries: [{ ...entry('x', 1), step: 4 }] }).success,
   ).toBe(false);
+});
+
+test('daysAgo считает календарные дни, а не сутки', () => {
+  const now = new Date(2026, 9, 20, 0, 30).getTime();
+  expect(daysAgo(new Date(2026, 9, 20, 0, 5).getTime(), now)).toBe(0);
+  expect(daysAgo(new Date(2026, 9, 19, 23, 50).getTime(), now)).toBe(1);
+  expect(daysAgo(new Date(2026, 8, 30, 12).getTime(), now)).toBe(20);
 });
 
 test('mergeJournals: объединение по id, ступени только растут, исправление не отменяется', () => {
