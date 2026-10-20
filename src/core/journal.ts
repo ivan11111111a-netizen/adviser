@@ -77,6 +77,27 @@ export function matchByPattern<T>(
   return { matched, resolved: left };
 }
 
+/**
+ * Открытые случаи файла на разобранных строках, которых нет среди замечаний на экране.
+ * Так бывает после перезапуска VS Code: замечания живут в памяти, а журнал — на диске.
+ * Новый разбор их продолжает, иначе тот же код дал бы ложные повторы.
+ */
+export function openCasesIn(
+  entries: readonly JournalEntry[],
+  file: string,
+  lines: { start: number; end: number },
+  shown: ReadonlySet<string>,
+): JournalEntry[] {
+  return entries.filter(
+    (e) =>
+      e.file === file &&
+      e.resolvedAt === undefined &&
+      !shown.has(e.id) &&
+      e.line >= lines.start &&
+      e.line <= lines.end,
+  );
+}
+
 /** Сколько раз этот тип ошибки уже был за неделю до этого случая, и последний из них. */
 export function repeatsOf(
   entries: readonly JournalEntry[],

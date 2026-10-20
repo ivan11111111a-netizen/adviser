@@ -6,6 +6,7 @@ import {
   masteredPatterns,
   matchByPattern,
   mergeJournals,
+  openCasesIn,
   renderReport,
   repeatsOf,
   weeklyReport,
@@ -61,6 +62,18 @@ test('matchByPattern: тот же тип — тот же случай, лишн�
   );
   expect(matched).toEqual([previous[1], undefined]);
   expect(resolved).toEqual([previous[0]]);
+});
+
+test('openCasesIn: открытые случаи файла на этих строках, кроме тех, что на экране', () => {
+  const open = entry('off-by-one', 1, { line: 5 });
+  const all = [
+    open,
+    entry('off-by-one', 1, { line: 5, resolvedAt: now }),
+    entry('off-by-one', 1, { line: 30 }),
+    entry('off-by-one', 1, { line: 5, file: 'file:///study/other.js' }),
+    entry('loose-equality', 1, { line: 6, id: 'shown' }),
+  ];
+  expect(openCasesIn(all, open.file, { start: 3, end: 10 }, new Set(['shown']))).toEqual([open]);
 });
 
 describe('repeatsOf', () => {

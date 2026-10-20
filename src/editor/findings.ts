@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import type { LineRange } from '../core/codeRange';
 import { diagnosticText, firstStep, reveal, type Step } from '../core/disclosure';
 import { trackRange } from '../core/changes';
-import { matchByPattern } from '../core/journal';
+import { matchByPattern, openCasesIn } from '../core/journal';
 import type { Issue, Severity } from '../core/reviewSchema';
 import { lineEdits } from './edits';
 import type { Journal } from './journal';
@@ -45,10 +45,19 @@ export class Findings implements vscode.Disposable {
     const all = this.byUri.get(uri.toString()) ?? [];
     const outside = (f: Finding) =>
       f.range.end.line < reviewed.start || f.range.start.line > reviewed.end;
+    // Случаи из журнала — только для файлов на диске: Untitled-1 в каждой сессии новый.
+    const fromJournal =
+      uri.scheme === 'file'
+        ? openCasesIn(this.journal.all(), uri.toString(), reviewed, new Set(all.map((f) => f.id)))
+        : [];
+    const previous: { id: string; step: Step; patternId: string }[] = [
+      ...all.filter((f) => !outside(f)).map((f) => ({ ...f, patternId: f.issue.patternId })),
+      ...fromJournal,
+    ];
     const { matched, resolved } = matchByPattern(
-      all.filter((f) => !outside(f)),
+      previous,
       findings.map((f) => f.issue.patternId),
-      (f) => f.issue.patternId,
+      (p) => p.patternId,
     );
     const now = Date.now();
     const added = findings.map((f, i): Finding => {
