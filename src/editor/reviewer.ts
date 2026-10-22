@@ -57,6 +57,25 @@ export class Reviewer {
     /** Человек сам запустил разбор: можно спросить согласие в окне. Автопилот не спрашивает. */
     interactive = false,
   ): Promise<Outcome> {
+    try {
+      return await this.run(doc, range, source, signal, interactive);
+    } catch (e) {
+      // Сбой самого Adviser (нет раздела в промпте, не читается patterns.json…): без всплывающих
+      // окон, как и ошибки сети, — в лог и в статус-бар.
+      this.log.error(
+        `разбор не удался: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
+      );
+      return { kind: 'failed', error: String(e), invalid: false };
+    }
+  }
+
+  private async run(
+    doc: vscode.TextDocument,
+    range: LineRange,
+    source: string,
+    signal: AbortSignal | undefined,
+    interactive: boolean,
+  ): Promise<Outcome> {
     // Код берём до первого await: правка после этого отменит разбор через signal.
     const code = doc.getText(
       new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length),

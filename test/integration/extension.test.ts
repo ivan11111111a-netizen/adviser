@@ -51,6 +51,24 @@ suite('Разбор функции', () => {
     assert.match(await hoverText(doc.uri, dots), /Mock-объяснение совета/);
   });
 
+  test('сбой самого Adviser (нет файла промпта) — команда не падает, замечаний нет', async () => {
+    const config = vscode.workspace.getConfiguration('adviser');
+    await config.update('dev.prompt', 'mentor.v999', vscode.ConfigurationTarget.Global);
+    try {
+      const doc = await vscode.workspace.openTextDocument({
+        language: 'javascript',
+        content: 'function third(items) {\n  return items[2].price;\n}\n',
+      });
+      const editor = await vscode.window.showTextDocument(doc);
+      editor.selection = new vscode.Selection(1, 2, 1, 2);
+      // Без обёртки исключение из разбора вылетело бы из команды всплывающим окном.
+      await vscode.commands.executeCommand('adviser.reviewFunction');
+      assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+    } finally {
+      await config.update('dev.prompt', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   test('«Ревьюер»: в подчёркивании объяснение, в hover сразу решение, кнопок нет', async () => {
     const config = vscode.workspace.getConfiguration('adviser');
     await config.update('mode', 'reviewer', vscode.ConfigurationTarget.Global);
