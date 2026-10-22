@@ -58,11 +58,13 @@ export function hoverView(
 ): HoverView {
   const shown = Math.max(step, firstStep(issue, presentation)) as Step;
   const inUnderline = diagnosticText(issue, presentation) === issue.explanation;
+  // Решения может не быть: его скрыл преподаватель (правила курса).
+  const hasFix = issue.fix.code.trim() !== '';
   return {
     explanation: shown >= 2 && !inUnderline ? issue.explanation : undefined,
     readMore: shown >= 2 && issue.readMore?.startsWith('https://') ? issue.readMore : undefined,
-    fix: shown >= 3 ? issue.fix : undefined,
-    actions: ([2, 3] as const).filter((s) => s > shown),
+    fix: shown >= 3 && hasFix ? issue.fix : undefined,
+    actions: ([2, 3] as const).filter((s) => s > shown && (s < 3 || hasFix)),
   };
 }
 

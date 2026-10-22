@@ -5,6 +5,7 @@ import {
   type ConfiguredProvider,
 } from '../config/provider';
 import { cacheKey, LruCache } from '../core/cache';
+import { applyCourse } from '../core/course';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
 import { runReview } from '../core/engine';
@@ -87,6 +88,12 @@ export class Reviewer {
     const settings = this.settings.get(doc.uri);
     if (settings.configError) {
       return { kind: 'refused', message: `исправь ${CONFIG_PATH}: ${settings.configError}` };
+    }
+    if (settings.course.silent) {
+      return {
+        kind: 'refused',
+        message: `контрольная: в этой папке Adviser молчит (${CONFIG_PATH})`,
+      };
     }
     if (this.settings.ignored(doc, settings)) {
       return { kind: 'refused', message: `файл в ignore ${CONFIG_PATH}, не отправляю` };
@@ -242,7 +249,7 @@ export class Reviewer {
 /** В кэше — полный ответ, а фильтры проекта применяем при показе: их можно поменять на ходу. */
 const shown = (review: Review, settings: Settings): Review => ({
   ...review,
-  issues: filterIssues(review.issues, settings),
+  issues: filterIssues(review.issues, settings).map((i) => applyCourse(i, settings.course)),
 });
 
 /** В режиме «Ревьюер» ступеней нет — всё сразу; в остальных — по ступеням. */

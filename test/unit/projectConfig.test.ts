@@ -62,6 +62,7 @@ describe('mergeSettings', () => {
       hiddenCategories: [],
       ignore: [],
       readAgentFiles: false,
+      course: { silent: false, hideSolutions: false, forbidden: [] },
       fromProject: [],
     });
   });

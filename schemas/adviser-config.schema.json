@@ -103,6 +103,27 @@
         "type": "boolean"
       }
     },
+    "course": {
+      "description": "Правила курса от преподавателя.",
+      "type": "object",
+      "properties": {
+        "silent": {
+          "description": "Контрольная: Adviser в этой папке молчит, даже по команде.",
+          "type": "boolean"
+        },
+        "hideSolutions": {
+          "description": "Не показывать готовое решение: только намёк и объяснение.",
+          "type": "boolean"
+        },
+        "forbidden": {
+          "description": "Слова, которых Adviser не говорит в этом задании: они вырезаются из текстов, а решение с ними скрывается.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "readAgentFiles": {
       "description": "Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.",
       "type": "boolean"

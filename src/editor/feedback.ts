@@ -48,7 +48,9 @@ export function feedbackActions(
         };
         // Применить можно только уже показанное решение: лампочка не должна обходить ступени.
         const apply =
-          finding.step >= 3 ? [applyFix(document, finding.range, issue, quote, diagnostics)] : [];
+          finding.step >= 3 && issue.fix.code.trim()
+            ? [applyFix(document, finding.range, issue, quote, diagnostics)]
+            : [];
         return [
           ...apply,
           action(`Adviser: понял${quote}`, FEEDBACK_COMMAND, {

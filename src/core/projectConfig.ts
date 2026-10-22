@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { CourseRules } from './course';
 import { MAX_ISSUES } from './engine';
 import { ADVICE_LANGUAGES, LEVELS, type Level } from './promptBuilder';
 import { CATEGORIES, SEVERITIES, type Issue, type Severity } from './reviewSchema';
@@ -70,6 +71,25 @@ export const projectConfigSchema = z
       .partialRecord(z.enum(CATEGORIES), z.boolean())
       .optional()
       .describe('false — не показывать замечания этой категории.'),
+    course: z
+      .object({
+        silent: z
+          .boolean()
+          .optional()
+          .describe('Контрольная: Adviser в этой папке молчит, даже по команде.'),
+        hideSolutions: z
+          .boolean()
+          .optional()
+          .describe('Не показывать готовое решение: только намёк и объяснение.'),
+        forbidden: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Слова, которых Adviser не говорит в этом задании: они вырезаются из текстов, а решение с ними скрывается.',
+          ),
+      })
+      .optional()
+      .describe('Правила курса от преподавателя.'),
     readAgentFiles: z
       .boolean()
       .optional()
@@ -126,6 +146,7 @@ export interface Settings extends UserSettings {
   hiddenCategories: string[];
   ignore: string[];
   readAgentFiles: boolean;
+  course: CourseRules;
   /** Какие настройки взяты из проекта — подсказка для статус-бара. */
   fromProject: string[];
 }
@@ -164,6 +185,11 @@ export function mergeSettings(user: UserSettings, project: ProjectConfig = {}): 
     hiddenCategories: CATEGORIES.filter((c) => project.categories?.[c] === false),
     ignore: [...(project.ignore ?? [])],
     readAgentFiles: project.readAgentFiles ?? false,
+    course: {
+      silent: project.course?.silent ?? false,
+      hideSolutions: project.course?.hideSolutions ?? false,
+      forbidden: [...(project.course?.forbidden ?? [])],
+    },
     fromProject: Object.keys(project),
   };
 }

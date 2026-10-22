@@ -135,8 +135,12 @@ export class Autopilot implements vscode.Disposable {
 
   /** Почему автопилот сейчас молчит; undefined — работает. */
   private blocked(doc: vscode.TextDocument): string | undefined {
-    if (this.settings.get(doc.uri).mode === 'manual') {
+    const settings = this.settings.get(doc.uri);
+    if (settings.mode === 'manual') {
       return 'режим «Вручную»';
+    }
+    if (settings.course.silent) {
+      return 'контрольная';
     }
     if (doNotDisturbUntil(this.context)) {
       return '«Не беспокоить»';

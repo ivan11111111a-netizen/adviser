@@ -47,6 +47,12 @@ test('пустой намёк (убрал фильтр утечек) — как 
   expect(hoverView(noHint, 1).explanation).toBeUndefined();
 });
 
+test('решение скрыто правилами курса — кнопки «Показать решение» нет', () => {
+  const hidden = issue({ fix: { description: '', code: '' } });
+  expect(hoverView(hidden, 2)).toMatchObject({ fix: undefined, actions: [] });
+  expect(hoverView(hidden, 1).actions).toEqual([2]);
+});
+
 test('ступени не закрываются обратно', () => {
   expect(reveal(1, 2)).toBe(2);
   expect(reveal(1, 3)).toBe(3);

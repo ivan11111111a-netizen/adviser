@@ -1,4 +1,5 @@
 {
   "minSeverity": "warning",
-  "ignore": ["generated/**"]
+  "ignore": ["generated/**"],
+  "course": { "forbidden": ["исправленный"] }
 }

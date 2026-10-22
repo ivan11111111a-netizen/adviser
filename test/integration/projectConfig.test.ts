@@ -36,6 +36,21 @@ suite('Настройки проекта', () => {
     );
   });
 
+  test('правила курса: решение с запретным словом скрыто — кнопки «Показать решение» нет', async () => {
+    const doc = await reviewIn('cart.js');
+    const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+      'vscode.executeHoverProvider',
+      doc.uri,
+      new vscode.Position(1, 5),
+    );
+    const text = hovers
+      .flatMap((h) => h.contents)
+      .map((c) => (typeof c === 'string' ? c : c.value))
+      .join('\n');
+    assert.match(text, /\[Объяснить\]/);
+    assert.doesNotMatch(text, /\[Показать решение\]/);
+  });
+
   test('файл из ignore не отправляется', async () => {
     const doc = await reviewIn('generated/api.js');
     assert.strictEqual(adviser(doc.uri).length, 0);
