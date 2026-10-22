@@ -17,8 +17,9 @@ export interface CaseScore {
 
 type Lines = Pick<Issue, 'patternId' | 'startLine' | 'endLine'>;
 
+/** «*» в ожидании — любой тип ошибки: в чужих наборах важно место, а не наш patternId. */
 const fits = (issue: Lines, expected: ExpectedIssue) =>
-  expected.patterns.includes(issue.patternId) &&
+  (expected.patterns.includes('*') || expected.patterns.includes(issue.patternId)) &&
   issue.startLine <= expected.lines[1] + 1 &&
   issue.endLine >= expected.lines[0] - 1;
 

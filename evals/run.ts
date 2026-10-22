@@ -25,6 +25,7 @@ import {
   type Judgment,
 } from './judge';
 import { renderReport, type RunMeta } from './report';
+import { loadSocratic } from './socratic';
 import { summarize, withMinConfidence, type CaseResult } from './score';
 
 const HELP = `npm run eval -- [параметры]
@@ -34,6 +35,8 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
+  --suite cases|socratic наш набор evals/cases.json или настоящие ошибки новичков из Socratic
+                        Debugging Benchmark (скачивается в evals/runs/, засчитывается место ошибки)
   --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION})
   --profile <id,id,…>   профиль учащегося: эти типы ошибок как частые (по 3 раза), если в промпте
                         есть {{profile}}. Проверка, не начнёт ли модель их выдумывать
@@ -68,6 +71,7 @@ const { values: args } = parseArgs({
     'base-url': { type: 'string', default: 'https://openrouter.ai/api/v1' },
     language: { type: 'string', default: 'ru' },
     prompt: { type: 'string', default: PROMPT_VERSION },
+    suite: { type: 'string', default: 'cases' },
     profile: { type: 'string' },
     only: { type: 'string' },
     concurrency: { type: 'string', default: '3' },
@@ -83,9 +87,11 @@ if (args.help) {
 }
 
 const concurrency = Number(args.concurrency) || 3;
-const cases = parseCases(JSON.parse(read('evals', 'cases.json'))).filter(
-  (c) => !args.only || c.file.includes(args.only),
-);
+const suite =
+  args.suite === 'socratic'
+    ? (await loadSocratic(ROOT)).cases
+    : parseCases(JSON.parse(read('evals', 'cases.json')));
+const cases = suite.filter((c) => !args.only || c.file.includes(args.only));
 
 const record = args.rescore
   ? (JSON.parse(readFileSync(args.rescore, 'utf8')) as RunRecord)
@@ -112,7 +118,7 @@ async function review(): Promise<RunRecord> {
     .replace(/[-:]/g, '')
     .replace('T', '-');
   const record: RunRecord = {
-    id: `${stamp}-${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
+    id: `${stamp}-${args.suite === 'socratic' ? 'socratic-' : ''}${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
       /[^\w.-]+/g,
       '_',
     ),
