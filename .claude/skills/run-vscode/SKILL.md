@@ -26,6 +26,7 @@ node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "s
 | `toasts` | тексты уведомлений |
 | `text <css>` | innerText элемента, например `text .monaco-hover` после `cmd Show or Focus Hover` |
 | `setting <ключ>=<значение>` | записать настройку в профиль, VS Code подхватит на лету. Значение разбирается как JSON, иначе берётся строкой |
+| `vsix <путь>` | до запуска поставить собранный `.vsix` в чистый профиль: расширение работает как у пользователя (Production, mock и `claude-code` выключены), F5 не нужен. Сначала `npm run package:vsix` |
 | `waittext <текст>` | ждать до 120 с, пока текст появится где-нибудь в окне, например `waittext Adviser: замечаний` |
 
 Разбор на подписке Claude (провайдер `claude-code` работает только из исходников, то есть здесь):

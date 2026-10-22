@@ -2,8 +2,11 @@
 // выполняет команды из аргументов по порядку, закрывает её. Описание команд — в SKILL.md.
 //   node .claude/skills/run-vscode/driver.mjs f5 "open src/extension.ts" "goto 6" "ss editor"
 import { chromium } from 'playwright-core';
-import { downloadAndUnzipVSCode } from '@vscode/test-electron';
-import { spawn, execSync } from 'node:child_process';
+import {
+  downloadAndUnzipVSCode,
+  resolveCliPathFromVSCodeExecutablePath,
+} from '@vscode/test-electron';
+import { spawn, spawnSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -127,6 +130,8 @@ const COMMANDS = {
   type: (text) => page.keyboard.type(text, { delay: 20 }),
   press: (key) => page.keyboard.press(key),
   sleep: (ms) => sleep(Number(ms) || 1000),
+  // vsix <путь> ставится до запуска VS Code (см. ниже), здесь делать уже нечего.
+  vsix: async () => {},
   async ss(name) {
     const file = path.join(SHOTS, `${name || Date.now()}.png`);
     await page.screenshot({ path: file });
@@ -198,6 +203,28 @@ fs.writeFileSync(
     'telemetry.telemetryLevel': 'off',
   }),
 );
+
+// vsix <путь>: поставить собранный пакет в чистый профиль — проверка расширения так, как его
+// поставит пользователь (ExtensionMode.Production, без F5).
+const vsix = steps.find(([cmd]) => cmd === 'vsix')?.[1];
+if (vsix) {
+  const cli = resolveCliPathFromVSCodeExecutablePath(codeExe);
+  // code.cmd на Windows запускается только через shell, поэтому пути в кавычках.
+  const result = spawnSync(
+    `"${cli}"`,
+    [
+      `--user-data-dir="${profile}"`,
+      `--extensions-dir="${path.join(profile, 'extensions')}"`,
+      '--install-extension',
+      `"${path.resolve(ROOT, vsix)}"`,
+    ],
+    { shell: true, encoding: 'utf8' },
+  );
+  console.log((result.stdout + result.stderr).trim());
+  if (result.status !== 0) {
+    process.exit(1);
+  }
+}
 
 const port = await freePort();
 const proc = spawn(
