@@ -183,9 +183,9 @@ suite('Журнал ошибок', () => {
     const frequent = (await view.getChildren(roots[1]))!;
     const pattern = frequent.find((n) => n.patternId === 'empty-collection');
     assert.ok(pattern, 'empty-collection среди частых');
-    assert.strictEqual(
-      (await view.getTreeItem(pattern)).label,
-      'не учтён пустой список, массив или строка',
+    assert.match(
+      String((await view.getTreeItem(pattern)).label),
+      /^\d+ · не учтён пустой список, массив или строка$/,
     );
     const cases = (await view.getChildren(pattern))!;
     assert.ok(cases.length >= 3);

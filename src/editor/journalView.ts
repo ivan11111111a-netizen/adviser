@@ -124,12 +124,13 @@ export class JournalView implements vscode.TreeDataProvider<Node>, vscode.Dispos
         return item;
       }
       case 'pattern': {
+        const title = patternTitle(this.patterns, node.patternId);
+        // Число — в начале: длинное название панель обрезает, и число в конце пропадало.
         const item = new vscode.TreeItem(
-          patternTitle(this.patterns, node.patternId),
+          `${node.count} · ${title}`,
           vscode.TreeItemCollapsibleState.Collapsed,
         );
-        item.description = String(node.count);
-        item.tooltip = node.patternId;
+        item.tooltip = `${title}\n${node.patternId}`;
         return item;
       }
       case 'case': {
