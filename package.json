@@ -62,6 +62,11 @@
         "category": "Adviser"
       },
       {
+        "command": "adviser.setupCopilot",
+        "title": "Подключить модель: через GitHub Copilot",
+        "category": "Adviser"
+      },
+      {
         "command": "adviser.setupOllama",
         "title": "Подключить модель: локально через Ollama",
         "category": "Adviser"
@@ -165,7 +170,7 @@
           {
             "id": "model",
             "title": "Кто будет разбирать код",
-            "description": "Бесплатно через OpenRouter, локально через Ollama или со своим ключом.\n[Бесплатно: OpenRouter](command:adviser.setupOpenRouter)\n[Локально: Ollama](command:adviser.setupOllama)\n[Свой ключ](command:adviser.setupOwnKey)",
+            "description": "Бесплатно через OpenRouter, через GitHub Copilot, локально через Ollama или со своим ключом.\n[Бесплатно: OpenRouter](command:adviser.setupOpenRouter)\n[Через GitHub Copilot](command:adviser.setupCopilot)\n[Локально: Ollama](command:adviser.setupOllama)\n[Свой ключ](command:adviser.setupOwnKey)",
             "media": {
               "markdown": "walkthrough/model.md"
             },
@@ -330,11 +335,13 @@
           "type": "string",
           "enum": [
             "openai-compatible",
+            "copilot",
             "claude-code",
             "mock"
           ],
           "enumDescriptions": [
             "OpenRouter, Ollama (/v1), LM Studio и другие OpenAI-совместимые серверы.",
+            "Модели GitHub Copilot через VS Code: ключ не нужен, нужен Copilot (у студентов бывает бесплатным через GitHub Education). В Cursor не работает. adviser.model — семейство модели, пусто — первая доступная.",
             "Только для разработки Adviser: подписка Claude через Claude Code CLI. Работает только при запуске из исходников (F5).",
             "Только для разработки и тестов: заготовленный ответ без модели."
           ],

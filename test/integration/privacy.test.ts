@@ -19,6 +19,23 @@ suite('Приватность', () => {
       .update('mode', undefined, vscode.ConfigurationTarget.Global);
   });
 
+  test('провайдер Copilot без Copilot — отказ без падения, замечаний нет', async () => {
+    const config = vscode.workspace.getConfiguration('adviser');
+    await config.update('provider', 'copilot', vscode.ConfigurationTarget.Global);
+    try {
+      const doc = await vscode.workspace.openTextDocument({
+        language: 'javascript',
+        content: 'function f(items) {\n  return items[0];\n}\n',
+      });
+      const editor = await vscode.window.showTextDocument(doc);
+      editor.selection = new vscode.Selection(1, 2, 1, 2);
+      await vscode.commands.executeCommand('adviser.reviewFunction');
+      assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+    } finally {
+      await config.update('provider', 'mock', vscode.ConfigurationTarget.Global);
+    }
+  });
+
   test('ключ в коде маскируется до отправки, номера строк те же', async () => {
     const api = (await vscode.extensions
       .getExtension('undefined_publisher.adviser')!

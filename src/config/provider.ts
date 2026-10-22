@@ -3,6 +3,7 @@ import { isLocal, type Destination } from '../core/consent';
 import { OLLAMA_URL } from '../core/setup';
 import type { Provider } from '../core/engine';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../providers/claudeCode';
+import { createCopilotProvider } from '../providers/copilot';
 import { mockProvider } from '../providers/mock';
 import { createOpenAICompatibleProvider } from '../providers/openaiCompatible';
 
@@ -43,6 +44,18 @@ export async function createProvider(
           apiKey: await context.secrets.get(API_KEY_SECRET),
           model,
         }),
+      };
+    }
+    case 'copilot': {
+      const copilot = await createCopilotProvider(model || undefined);
+      if (typeof copilot === 'string') {
+        return copilot;
+      }
+      return {
+        id: `${kind} ${copilot.model}`,
+        // Код уходит в GitHub Copilot: окно согласия скажет это так же, как про любой сервер.
+        destination: { baseUrl: 'GitHub Copilot', model: copilot.model },
+        provider: copilot.provider,
       };
     }
     case 'claude-code':

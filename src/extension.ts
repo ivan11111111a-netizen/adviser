@@ -39,6 +39,7 @@ import {
 } from './editor/setup';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
 import { UsageTracker } from './editor/usage';
+import { setupCopilot } from './providers/copilot';
 import { lastMockRequest } from './providers/mock';
 
 /** Что видят интеграционные тесты. Только в режиме тестов: журнал не отдаём другим расширениям. */
@@ -101,6 +102,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     vscode.commands.registerCommand('adviser.openWalkthrough', () => openWalkthrough(context)),
     vscode.commands.registerCommand('adviser.setupOpenRouter', () => setupOpenRouter(context)),
     vscode.commands.registerCommand('adviser.setupOllama', () => setupOllama()),
+    vscode.commands.registerCommand('adviser.setupCopilot', () => setupCopilot()),
     vscode.commands.registerCommand('adviser.setupOwnKey', () => setupOwnKey(context)),
     vscode.commands.registerCommand('adviser.chooseLevel', () => chooseLevel()),
     vscode.commands.registerCommand('adviser.tryReview', () => tryReview(context)),
