@@ -9,7 +9,15 @@ const issue = (
   startLine: number,
   endLine = startLine,
   over: Partial<Issue> = {},
-) => ({ ...mockReview.issues[0], patternId, startLine, endLine, ...over }) as Issue;
+) =>
+  ({
+    ...mockReview.issues[0],
+    example: undefined,
+    patternId,
+    startLine,
+    endLine,
+    ...over,
+  }) as Issue;
 
 const average: EvalCase = {
   file: 'js/average-price.js',
@@ -58,7 +66,7 @@ describe('summarize', () => {
             category: 'security',
             hint: 'без вопроса',
           }),
-          issue('missing-null-check', 1, 1, { hint: 'А если null?' }),
+          issue('missing-null-check', 1, 1, { hint: 'А если null?', example: 'f(null) // падает' }),
         ],
         seconds: 9,
       },
@@ -79,6 +87,7 @@ describe('summarize', () => {
       judgedHints: 0,
       hintLeaks: 0,
       hintGuides: 1,
+      withExample: 1,
     });
   });
 

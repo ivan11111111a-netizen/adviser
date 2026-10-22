@@ -16,6 +16,7 @@ export const mockReview: Review = {
       endLine: 2,
       hint: 'Mock-намёк: что будет на этой строке с пустыми данными?',
       explanation: 'Mock-объяснение: здесь объясняется, почему это ошибка.',
+      example: '// Mock-пример: вызов, на котором видна ошибка',
       fix: { description: 'Mock-исправление', code: '// исправленный код' },
     },
     {

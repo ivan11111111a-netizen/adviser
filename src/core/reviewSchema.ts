@@ -24,6 +24,8 @@ export const issueSchema = z.object({
   explanation: z.string(),
   fix: z.object({ description: z.string(), code: z.string() }),
   readMore: z.string().optional(),
+  /** Пример, на котором ошибка видна: вызов и что получится, без исправления. С mentor.v3. */
+  example: z.string().optional(),
 });
 
 export const reviewSchema = z.object({

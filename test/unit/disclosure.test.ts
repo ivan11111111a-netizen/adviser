@@ -40,6 +40,7 @@ test('ревьюер: всё сразу — объяснение в подчёр
   expect(hoverView(issue(), 1, 'reviewer')).toEqual({
     explanation: undefined,
     readMore: 'https://developer.mozilla.org/ru/',
+    example: issue().example,
     fix: issue().fix,
     actions: [],
   });
@@ -50,6 +51,16 @@ test('пустой намёк (убрал фильтр утечек) — как 
   expect(firstStep(noHint)).toBe(2);
   expect(diagnosticText(noHint)).toBe(noHint.explanation);
   expect(hoverView(noHint, 1).explanation).toBeUndefined();
+});
+
+test('пример — вместе с объяснением: не на ступени намёка, у уязвимости сразу', () => {
+  const withExample = (over = {}) => issue({ example: 'first([]) // undefined', ...over });
+  expect(hoverView(withExample(), 1).example).toBeUndefined();
+  expect(hoverView(withExample(), 2).example).toBe('first([]) // undefined');
+  expect(hoverView(withExample({ category: 'security' }), 1).example).toBe(
+    'first([]) // undefined',
+  );
+  expect(hoverView(withExample({ example: '  ' }), 3).example).toBeUndefined();
 });
 
 test('решение скрыто правилами курса — кнопки «Показать решение» нет', () => {

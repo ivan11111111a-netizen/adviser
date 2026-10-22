@@ -94,6 +94,8 @@ export interface Summary {
   hintLeaks: number;
   /** Доля намёков, которые наводят на проблему, а не загадывают загадку. */
   hintGuides: number;
+  /** Сколько замечаний с примером (mentor.v3). */
+  withExample: number;
 }
 
 const ratio = (a: number, b: number) => (b === 0 ? 1 : a / b);
@@ -121,5 +123,6 @@ export function summarize(results: CaseResult[]): Summary {
     judgedHints: judgments.length,
     hintLeaks: 1 - ratio(judgments.filter((j) => !j.leaks).length, judgments.length),
     hintGuides: ratio(judgments.filter((j) => j.guides).length, judgments.length),
+    withExample: answered.flatMap((r) => r.issues!).filter((i) => i.example?.trim()).length,
   };
 }

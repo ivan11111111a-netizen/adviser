@@ -34,6 +34,16 @@ test('applyCourseText — те же запретные слова в любом 
   ).toBe('Верно, … тут подходит.');
 });
 
-test('hideSolutions — решения нет ни у одного замечания', () => {
-  expect(applyCourse(issue({}), { ...NO_COURSE, hideSolutions: true }).fix.code).toBe('');
+test('hideSolutions — решения нет ни у одного замечания, пример остаётся', () => {
+  const result = applyCourse(issue({ example: 'first([]) // undefined' }), {
+    ...NO_COURSE,
+    hideSolutions: true,
+  });
+  expect(result.fix.code).toBe('');
+  expect(result.example).toBe('first([]) // undefined');
+});
+
+test('пример с запретным словом не показывается: «…» сломало бы код', () => {
+  const course = { ...NO_COURSE, forbidden: ['enumerate'] };
+  expect(applyCourse(issue({ example: 'list(enumerate(xs))' }), course).example).toBeUndefined();
 });

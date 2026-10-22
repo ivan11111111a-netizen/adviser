@@ -32,11 +32,11 @@ suite('Разбор функции', () => {
     // Внутри suggestion, но дальше двух первых символов: VS Code его текст здесь не покажет, и мы тоже.
     const at = new vscode.Position(1, 5);
     let text = await hoverText(doc.uri, at);
-    assert.doesNotMatch(text, /Mock-объяснение|исправленный код|«/);
+    assert.doesNotMatch(text, /Mock-объяснение|Mock-пример|исправленный код|«/);
 
     await click(text, 'Объяснить');
     text = await hoverText(doc.uri, at);
-    assert.match(text, /Mock-объяснение/);
+    assert.match(text, /Mock-объяснение[\s\S]*\*\*Пример\.\*\*[\s\S]*Mock-пример/);
     assert.doesNotMatch(text, /исправленный код/);
 
     await click(text, 'Показать решение');

@@ -44,5 +44,7 @@ export function applyCourse(issue: Issue, course: CourseRules): Issue {
     hint: censor(issue.hint, words),
     explanation: censor(issue.explanation, words),
     fix: hideFix ? { description: '', code: '' } : issue.fix,
+    // Пример — код: «…» его бы сломало, поэтому пример с запретным словом не показываем.
+    example: issue.example && mentions(issue.example, words) ? undefined : issue.example,
   };
 }

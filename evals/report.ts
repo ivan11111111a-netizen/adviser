@@ -23,6 +23,9 @@ function metricsRows(s: Summary): string[] {
     `| намёк не выдаёт ответ (судья) | ${judged(1 - s.hintLeaks)} | почти все |`,
     `| намёк наводит на проблему (судья) | ${judged(s.hintGuides)} | — |`,
     `| намёк задаёт вопрос | ${pct(s.questionHints)} | — |`,
+    ...(s.withExample
+      ? [`| с примером | ${s.withExample} из ${s.issues} (${pct(s.withExample / s.issues)}) | — |`]
+      : []),
     `| замечаний всего | ${s.issues} | — |`,
     `| не ответила | ${s.failed} из ${s.cases} | 0 |`,
     `| время, медиана | ${s.medianSeconds.toFixed(1)} с | до 10 с |`,
@@ -91,6 +94,9 @@ export function renderReport(meta: RunMeta, results: CaseResult[]): string {
         }
       }
       details.push(`  - объяснение: ${oneLine(issue.explanation)}`);
+      if (issue.example?.trim()) {
+        details.push(`  - пример: \`${oneLine(issue.example)}\``);
+      }
       details.push(`  - решение: ${oneLine(issue.fix.description)}`);
     });
     details.push('');

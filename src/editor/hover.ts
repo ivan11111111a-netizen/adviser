@@ -72,6 +72,10 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
         if (view.explanation) {
           md.appendMarkdown(`**Почему.** ${view.explanation}\n\n`);
         }
+        if (view.example) {
+          md.appendMarkdown('**Пример.**\n');
+          md.appendCodeblock(view.example, languageId);
+        }
         if (view.readMore) {
           md.appendMarkdown(`[Подробнее](${view.readMore})\n\n`);
         }

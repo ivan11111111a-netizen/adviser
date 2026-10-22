@@ -50,6 +50,8 @@ export interface HoverView {
   explanation?: string;
   /** Ссылка идёт вместе с объяснением, и только https. */
   readMore?: string;
+  /** Пример, на котором видна ошибка, — тоже вместе с объяснением. */
+  example?: string;
   fix?: Issue['fix'];
   /** Кнопки: 2 — «Объяснить», 3 — «Показать решение». */
   actions: Exclude<Step, 1>[];
@@ -68,6 +70,7 @@ export function hoverView(
   return {
     explanation: shown >= 2 && !inUnderline ? issue.explanation : undefined,
     readMore: shown >= 2 && issue.readMore?.startsWith('https://') ? issue.readMore : undefined,
+    example: shown >= 2 && issue.example?.trim() ? issue.example : undefined,
     fix: shown >= 3 && hasFix ? issue.fix : undefined,
     actions: ([2, 3] as const).filter((s) => s > shown && (s < 3 || hasFix)),
   };

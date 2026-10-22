@@ -3,7 +3,7 @@ import { renderPatterns, renderProfile, type Pattern } from './patterns';
 import { reviewJsonSchema } from './reviewSchema';
 
 /** Версия промпта. Войдёт в ключ кэша: изменённый промпт — новый файл prompts/mentor.vN.md. */
-export const PROMPT_VERSION = 'mentor.v2';
+export const PROMPT_VERSION = 'mentor.v3';
 
 /** Уровень учащегося (6.7 плана): от него зависит, о чём наставник говорит и о чём молчит. */
 export const LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
