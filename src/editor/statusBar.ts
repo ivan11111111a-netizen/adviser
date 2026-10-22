@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { missingSupport } from '../core/languageSupport';
 import type { Triggers } from '../core/projectConfig';
 import type { Mode } from '../core/scheduler';
 import type { Autopilot } from './autopilot';
@@ -63,6 +64,7 @@ export class StatusBar implements vscode.Disposable {
       vscode.languages.onDidChangeDiagnostics(() => this.refresh()),
       settings.onDidChange(() => this.refresh()),
       usage.onDidChange(() => this.refresh()),
+      vscode.extensions.onDidChange(() => this.refresh()),
     ];
     this.refresh();
     this.item.show();
@@ -93,9 +95,13 @@ export class StatusBar implements vscode.Disposable {
     const uri = vscode.window.activeTextEditor?.document.uri;
     const settings = this.settings.get(uri);
     const mode = MODE_TEXT[settings.mode];
+    const support = activeSupport();
     const problem = settings.configError
       ? `исправь ${CONFIG_PATH}: ${settings.configError}`
-      : this.problem;
+      : (this.problem ??
+        (support
+          ? `для ${support.language} нужно расширение ${support.id}: без него Adviser не видит функций`
+          : undefined));
     const dnd = doNotDisturbUntil(this.context);
     clearTimeout(this.dndTimer);
     if (dnd) {
@@ -136,6 +142,14 @@ export class StatusBar implements vscode.Disposable {
   }
 }
 
+/** Чего не хватает языку активного файла (languageSupport). */
+function activeSupport() {
+  const languageId = vscode.window.activeTextEditor?.document.languageId;
+  return languageId
+    ? missingSupport(languageId, (id) => vscode.extensions.getExtension(id) !== undefined)
+    : undefined;
+}
+
 type MenuItem = vscode.QuickPickItem & { run?: () => unknown };
 
 /** Меню по клику на статус-бар: разбор, режимы, «Не беспокоить», журнал. */
@@ -147,6 +161,16 @@ export async function showMenu(
 ) {
   const mode = settings.get(vscode.window.activeTextEditor?.document.uri).mode;
   const dnd = doNotDisturbUntil(context);
+  const support = activeSupport();
+  const install: MenuItem[] = support
+    ? [
+        {
+          label: `$(extensions) Установить расширение для ${support.language}`,
+          description: support.id,
+          run: () => vscode.commands.executeCommand('workbench.extensions.search', support.id),
+        },
+      ]
+    : [];
   const separator: MenuItem = { label: '', kind: vscode.QuickPickItemKind.Separator };
   const modes = (Object.keys(MODE_TEXT) as Mode[]).map((m): MenuItem => ({
     label: `${MODE_TEXT[m].icon} ${MODE_TEXT[m].title}`,
@@ -168,6 +192,7 @@ export async function showMenu(
       ];
   const picked = await vscode.window.showQuickPick<MenuItem>(
     [
+      ...install,
       {
         label: '$(play) Разобрать эту функцию',
         run: () => vscode.commands.executeCommand('adviser.reviewFunction'),
