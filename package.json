@@ -117,6 +117,11 @@
         "title": "Упражнение на частую ошибку",
         "category": "Adviser",
         "icon": "$(mortar-board)"
+      },
+      {
+        "command": "adviser.understandChanges",
+        "title": "Понимаю ли я изменения",
+        "category": "Adviser"
       }
     ],
     "menus": {

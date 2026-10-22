@@ -24,6 +24,8 @@ const CURSOR_SETTLE_MS = 500;
 const BASELINE_RETRY_MS = 3000;
 /** Через сколько после правки чистого документа проверить, не перечитан ли он с диска. */
 const RELOAD_CHECK_MS = 300;
+/** Столько строк изменилось извне — похоже, файл переписал ИИ-агент. */
+export const BIG_RELOAD_LINES = 30;
 
 interface DocState {
   changes: DocumentChanges;
@@ -63,6 +65,9 @@ export class Autopilot implements vscode.Disposable {
   /** Сохранения, которые человек сделал сам. Автосохранение по таймеру — не повод для разбора. */
   private readonly manualSaves = new Set<string>();
   private readonly savedAt = new Map<string, number>();
+  private readonly bigReload = new vscode.EventEmitter<vscode.TextDocument>();
+  /** Файл перечитан с диска с большой правкой (от BIG_RELOAD_LINES строк). */
+  readonly onBigReload = this.bigReload.event;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -131,6 +136,7 @@ export class Autopilot implements vscode.Disposable {
     clearTimeout(this.cursorTimer);
     this.docs.forEach((state) => clearTimeout(state.pauseTimer));
     this.subscriptions.forEach((s) => s.dispose());
+    this.bigReload.dispose();
   }
 
   /** Почему автопилот сейчас молчит; undefined — работает. */
@@ -201,10 +207,18 @@ export class Autopilot implements vscode.Disposable {
       // (git checkout и т. п.). isDirty в событии ещё старый, поэтому смотрим чуть позже:
       // после перечитывания документ так и останется чистым, хотя его никто не сохранял.
       const editedAt = Date.now();
+      const lines = e.contentChanges.reduce(
+        (n, c) =>
+          n + Math.max(c.range.end.line - c.range.start.line + 1, c.text.split('\n').length),
+        0,
+      );
       setTimeout(() => {
         const savedAt = this.savedAt.get(doc.uri.toString()) ?? 0;
         if (!doc.isDirty && !doc.isClosed && savedAt < editedAt) {
           this.reloaded(doc);
+          if (lines >= BIG_RELOAD_LINES) {
+            this.bigReload.fire(doc);
+          }
         }
       }, RELOAD_CHECK_MS);
     }

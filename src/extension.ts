@@ -26,6 +26,12 @@ import {
 } from './editor/hover';
 import { startExercise, type ExerciseArgs } from './editor/exercise';
 import { checkYourself } from './editor/selfCheck';
+import {
+  suggestUnderstand,
+  UNDERSTAND_COMMAND,
+  understandChanges,
+  type UnderstandArgs,
+} from './editor/understand';
 import { readPatterns } from './editor/bundled';
 import { clearJournal, exportJournal, Journal } from './editor/journal';
 import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
@@ -104,6 +110,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     vscode.commands.registerCommand('adviser.exercise', (args?: ExerciseArgs) =>
       startExercise(reviewer, findings, opened, patterns, status, args),
     ),
+    vscode.commands.registerCommand(UNDERSTAND_COMMAND, (args?: UnderstandArgs) =>
+      understandChanges(context, reviewer, status, log, args),
+    ),
+    autopilot.onBigReload((doc) => void suggestUnderstand(context, reviewer, doc)),
     vscode.commands.registerCommand('adviser.exportJournal', () => exportJournal(opened)),
     vscode.commands.registerCommand('adviser.clearJournal', () => clearJournal(opened)),
     vscode.commands.registerCommand('adviser.openWalkthrough', () => openWalkthrough(context)),

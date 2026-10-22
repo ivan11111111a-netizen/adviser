@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "name": "average-empty",
+      "file": "stats.js",
+      "before": "function averagePrice(items) {\n  const total = items.reduce((sum, item) => sum + item.price);\n  return total / items.length;\n}\n",
+      "after": "function averagePrice(items) {\n  if (items.length === 0) {\n    return 0;\n  }\n  const total = items.reduce((sum, item) => sum + item.price, 0);\n  return total / items.length;\n}\n"
+    },
+    {
+      "name": "parse-grades",
+      "file": "grades.py",
+      "before": "def parse_grades(text):\n    grades = []\n    for part in text.split(','):\n        grades.append(int(part))\n    return grades\n",
+      "after": "def parse_grades(text):\n    grades = []\n    for part in text.split(','):\n        part = part.strip()\n        if not part:\n            continue\n        grade = int(part)\n        if grade < 1 or grade > 5:\n            raise ValueError(f'оценка вне диапазона: {grade}')\n        grades.append(grade)\n    return grades\n"
+    },
+    {
+      "name": "retry-new-file",
+      "file": "retry.js",
+      "before": "",
+      "after": "async function fetchWithRetry(url, attempts = 3) {\n  let lastError;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      const response = await fetch(url);\n      if (response.ok) {\n        return await response.json();\n      }\n      lastError = new Error(`HTTP ${response.status}`);\n    } catch (error) {\n      lastError = error;\n    }\n    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** i));\n  }\n  throw lastError;\n}\n"
+    },
+    {
+      "name": "ticket-price",
+      "file": "Tickets.java",
+      "before": "class Tickets {\n    static int price(char type) {\n        int price = 0;\n        switch (type) {\n            case 'C':\n                price = 200;\n            case 'A':\n                price = 400;\n        }\n        return price;\n    }\n}\n",
+      "after": "class Tickets {\n    static int price(char type) {\n        switch (type) {\n            case 'C':\n                return 200;\n            case 'S':\n                return 300;\n            case 'A':\n                return 400;\n            default:\n                throw new IllegalArgumentException(\"неизвестный тип билета: \" + type);\n        }\n    }\n\n    static int total(char type, int count) {\n        return price(type) * count;\n    }\n}\n"
+    }
+  ]
+}

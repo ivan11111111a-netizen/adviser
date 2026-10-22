@@ -1,6 +1,8 @@
 // Eval советов (этап 3): прогоняет набор evals/cases.json через тот же промпт и движок, что
 // и расширение, и считает метрики. Справка: npm run eval -- --help
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { MIN_CONFIDENCE, runReview, runStructured, type Provider } from '../src/core/engine';
@@ -15,10 +17,29 @@ import {
 import type { Issue } from '../src/core/reviewSchema';
 import { buildCheckPrompt, CHECK_PROMPT_VERSION, checkSchema } from '../src/core/selfCheck';
 import { buildExercisePrompt, EXERCISE_PROMPT_VERSION, exerciseSchema } from '../src/core/exercise';
+import {
+  ANSWERS_PROMPT_VERSION,
+  answersSchema,
+  buildAnswersPrompt,
+  buildQuestionsPrompt,
+  MAX_QUESTIONS,
+  newFileDiff,
+  QUESTIONS_PROMPT_VERSION,
+  questionsSchema,
+} from '../src/core/understand';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../src/providers/claudeCode';
 import { mockProvider } from '../src/providers/mock';
 import { createOpenAICompatibleProvider } from '../src/providers/openaiCompatible';
 import { languageIdOf, parseCases, type EvalCase } from './cases';
+import {
+  answerSets,
+  parseChangesCases,
+  renderChangesReport,
+  summarizeChanges,
+  type AnswerKind,
+  type ChangesCase,
+  type ChangesRecord,
+} from './changes';
 import {
   extraIssues,
   parseExerciseCases,
@@ -45,12 +66,14 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
-  --suite cases|socratic|check|exercise
+  --suite cases|socratic|check|exercise|changes
                         наш набор evals/cases.json, настоящие ошибки новичков из Socratic Debugging
                         Benchmark (скачивается в evals/runs/, засчитывается место ошибки) или
                         «Проверь меня» на evals/check-cases.json (понял ли учащийся ошибку)
   --suite exercise      упражнения на evals/exercise-cases.json: модель пишет функцию с ошибкой
                         заданного типа, наставник (--prompt) её разбирает
+  --suite changes       «Понимаю ли я изменения» на evals/changes-cases.json: вопросы по изменению
+                        и оценка правильных ответов, «не знаю» и ответов на чужой вопрос
   --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION};
                         для --suite check — ${CHECK_PROMPT_VERSION})
   --profile <id,id,…>   профиль учащегося: эти типы ошибок как частые (по 3 раза), если в промпте
@@ -108,6 +131,10 @@ if (args.suite === 'check') {
 }
 if (args.suite === 'exercise') {
   await exercises();
+  process.exit(0);
+}
+if (args.suite === 'changes') {
+  await changes();
   process.exit(0);
 }
 const suite =
@@ -400,6 +427,91 @@ async function exercises() {
     `\nнужная ошибка нашлась ${s.found} из ${s.total - s.failed} · с лишними ошибками ${s.withExtra} · не получилось ${s.failed}`,
   );
   console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
+}
+
+/** --suite changes: вопросы по изменениям на evals/changes-cases.json (evals/changes.ts). */
+async function changes() {
+  const language = ADVICE_LANGUAGES.find((l) => l === args.language);
+  if (!language) {
+    throw new Error(`--language: ${ADVICE_LANGUAGES.join(' или ')}`);
+  }
+  const provider = createProvider(args.provider!, args.model!);
+  const questionsTemplate = parseTemplate(read('prompts', `${QUESTIONS_PROMPT_VERSION}.md`));
+  const answersTemplate = parseTemplate(read('prompts', `${ANSWERS_PROMPT_VERSION}.md`));
+  const items = parseChangesCases(JSON.parse(read('evals', 'changes-cases.json'))).filter(
+    (c) => !args.only || c.name.includes(args.only),
+  );
+  const id = `${stamp(new Date())}-changes-${args.provider}-${args.model}-${QUESTIONS_PROMPT_VERSION}`;
+  console.log(`${id}: ${items.length} изменений`);
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'adviser-eval-'));
+  const records: ChangesRecord[] = [];
+  await pool(items, concurrency, async (item) => {
+    const record: ChangesRecord = { name: item.name, results: {} };
+    records.push(record);
+    const diff = `### ${item.file}\n${item.before ? gitDiff(tmp, item) : newFileDiff(item.after)}`;
+    const asked = await runStructured(
+      questionsSchema,
+      provider,
+      buildQuestionsPrompt(questionsTemplate, { diff, level: 'beginner', language }),
+    );
+    if (!asked.ok) {
+      record.error = asked.error;
+      return;
+    }
+    const quiz = { ...asked.data, questions: asked.data.questions.slice(0, MAX_QUESTIONS) };
+    record.quiz = quiz;
+    for (const [kind, answers] of Object.entries(answerSets(quiz)) as [AnswerKind, string[]][]) {
+      const checked = await runStructured(
+        answersSchema,
+        provider,
+        buildAnswersPrompt(answersTemplate, { diff, quiz, answers, level: 'beginner', language }),
+      );
+      if (checked.ok) {
+        record.results[kind] = checked.data.answers;
+      } else {
+        record.error = checked.error;
+      }
+    }
+    console.log(`${record.error ? '!' : '+'} ${item.name}: вопросов ${quiz.questions.length}`);
+  });
+  rmSync(tmp, { recursive: true, force: true });
+  records.sort((a, b) => a.name.localeCompare(b.name));
+  mkdirSync(RUNS, { recursive: true });
+  writeFileSync(path.join(RUNS, `${id}.json`), JSON.stringify(records, null, 2));
+  const reportFile = path.join(RUNS, `${id}.md`);
+  const meta = {
+    id,
+    date: new Date().toLocaleString('ru-RU'),
+    model: args.model!,
+    prompts: `${QUESTIONS_PROMPT_VERSION} и ${ANSWERS_PROMPT_VERSION}`,
+  };
+  writeFileSync(reportFile, renderChangesReport(meta, records));
+  const s = summarizeChanges(records);
+  console.log(
+    `\nвопросов ${s.questions} · правильный засчитан ${s.accepted.join(' из ')} · ` +
+      `«не знаю» не засчитано ${s.dontKnowRejected.join(' из ')} · ` +
+      `чужой ответ не засчитан ${s.swappedRejected.join(' из ')} · не получилось ${s.failed}`,
+  );
+  console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
+}
+
+/** Настоящий diff от git, без заголовков с путями временных файлов. */
+function gitDiff(tmp: string, item: ChangesCase): string {
+  const dir = mkdtempSync(path.join(tmp, `${item.name}-`));
+  const before = path.join(dir, 'before');
+  const after = path.join(dir, 'after');
+  writeFileSync(before, item.before);
+  writeFileSync(after, item.after);
+  let out: string;
+  try {
+    out = execFileSync('git', ['diff', '--no-index', '--no-color', before, after], {
+      encoding: 'utf8',
+    });
+  } catch (e) {
+    // Есть различия — git выходит с кодом 1, но diff всё равно в stdout.
+    out = (e as { stdout: string }).stdout;
+  }
+  return out.slice(out.indexOf('@@'));
 }
 
 /** Местное время для имени файла: 20261013-2326. */

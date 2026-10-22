@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { z } from 'zod';
 import {
   createFallbackProvider,
   createProvider,
@@ -8,7 +9,7 @@ import { cacheKey, LruCache } from '../core/cache';
 import { applyCourse, applyCourseText } from '../core/course';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
-import { runReview, runStructured, type Usage } from '../core/engine';
+import { runReview, runStructured, type ModelRequest, type Usage } from '../core/engine';
 import { hintLeak } from '../core/hintGuard';
 import {
   buildExercisePrompt,
@@ -24,6 +25,7 @@ import {
   resolveLanguage,
   type AdviceLanguage,
   type PromptInput,
+  type PromptTemplate,
 } from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
 import { filterIssues, type Settings } from '../core/projectConfig';
@@ -35,6 +37,16 @@ import {
   checkFallback,
   checkSchema,
 } from '../core/selfCheck';
+import {
+  ANSWERS_PROMPT_VERSION,
+  answersSchema,
+  buildAnswersPrompt,
+  buildQuestionsPrompt,
+  QUESTIONS_PROMPT_VERSION,
+  questionsSchema,
+  type Quiz,
+  type QuizResult,
+} from '../core/understand';
 import { readBundled, readPatterns } from './bundled';
 import { collectContext, readRules } from './context';
 import type { Findings } from './findings';
@@ -42,15 +54,17 @@ import { CONFIG_PATH, type ProjectSettings } from './settings';
 import type { UsageTracker } from './usage';
 import type { Consent } from './consent';
 
-export type ExerciseOutcome =
-  | { kind: 'generated'; exercise: Exercise; language: AdviceLanguage }
-  | { kind: 'refused'; message: string }
-  | { kind: 'failed'; error: string; invalid: boolean };
+/** Не получилось: нельзя отправлять (message — для статус-бара) или сбой модели и сети. */
+type NotDone =
+  { kind: 'refused'; message: string } | { kind: 'failed'; error: string; invalid: boolean };
 
-export type CheckOutcome =
-  | { kind: 'checked'; understood: boolean; feedback: string }
-  | { kind: 'refused'; message: string }
-  | { kind: 'failed'; error: string; invalid: boolean };
+/** Ответ модели по схеме и язык, на котором она отвечала. */
+export type Asked<T> = { kind: 'done'; data: T; language: AdviceLanguage } | NotDone;
+
+export type ExerciseOutcome =
+  { kind: 'generated'; exercise: Exercise; language: AdviceLanguage } | NotDone;
+
+export type CheckOutcome = { kind: 'checked'; understood: boolean; feedback: string } | NotDone;
 
 const textOf = (doc: vscode.TextDocument, range: LineRange) =>
   doc.getText(new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length));
@@ -238,75 +252,37 @@ export class Reviewer {
     issue: Issue,
     answer: string,
   ): Promise<CheckOutcome> {
-    try {
-      return await this.runCheck(doc, range, issue, answer);
-    } catch (e) {
-      this.log.error(
-        `проверка не удалась: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
-      );
-      return { kind: 'failed', error: String(e), invalid: false };
-    }
-  }
-
-  private async runCheck(
-    doc: vscode.TextDocument,
-    range: LineRange,
-    issue: Issue,
-    answer: string,
-  ): Promise<CheckOutcome> {
     const code = textOf(doc, range);
     const settings = this.allowed(doc);
     if (typeof settings === 'string') {
       return { kind: 'refused', message: settings };
     }
-    const main = await createProvider(this.context);
-    if (typeof main === 'string') {
-      return { kind: 'refused', message: main };
-    }
-    const budget = this.withinBudget(main);
-    if (typeof budget === 'string') {
-      return { kind: 'refused', message: budget };
-    }
-    const denied = await this.denied(budget.configured, true);
-    if (denied) {
-      return { kind: 'refused', message: denied };
-    }
-    const template = parseTemplate(
-      await readBundled(this.context, 'prompts', `${CHECK_PROMPT_VERSION}.md`),
-    );
-    const language = resolveLanguage(settings.language, vscode.env.language);
-    const built = buildCheckPrompt(template, {
-      languageId: doc.languageId,
-      code,
-      level: settings.level,
-      language,
-      issue,
-      answer,
+    const asked = await this.ask({
+      what: `проверка ответа: ${issue.patternId}`,
+      version: CHECK_PROMPT_VERSION,
+      schema: checkSchema,
+      settings,
+      sendsCode: true,
+      build: (template, language) =>
+        buildCheckPrompt(template, {
+          languageId: doc.languageId,
+          code,
+          level: settings.level,
+          language,
+          issue,
+          answer,
+        }),
     });
-    const request = {
-      ...built,
-      system: redact(built.system).text,
-      prompt: redact(built.prompt).text,
-    };
-    this.log.info(`проверка ответа: ${issue.patternId}, ${CHECK_PROMPT_VERSION}`);
-    const result = await runStructured(
-      checkSchema,
-      budget.configured.provider,
-      request,
-      undefined,
-      budget.spend,
-    );
-    if (!result.ok) {
-      this.log.warn(result.error);
-      return { kind: 'failed', error: result.error, invalid: result.invalid };
+    if (asked.kind !== 'done') {
+      return asked;
     }
-    const { understood } = result.data;
-    let { feedback } = result.data;
+    const { understood } = asked.data;
+    let { feedback } = asked.data;
     // Отзыв на неверный ответ — новый вопрос, а не решение: если выдаёт решение, заменяем.
     const leak = !understood && hintLeak(feedback, issue.fix.code, code);
     if (leak) {
       this.log.info(`${issue.patternId}: отзыв выдавал ответ («${leak}»), заменён`);
-      feedback = checkFallback(language);
+      feedback = checkFallback(asked.language);
     }
     this.log.info(`${issue.patternId}: ${understood ? 'объяснил верно' : 'пока не понял'}`);
     return { kind: 'checked', understood, feedback: applyCourseText(feedback, settings.course) };
@@ -321,6 +297,90 @@ export class Reviewer {
     languageId: string,
     uri: vscode.Uri | undefined,
   ): Promise<ExerciseOutcome> {
+    const settings = this.settings.get(uri);
+    const asked = await this.ask({
+      what: `упражнение: ${pattern.id}, ${languageId}`,
+      version: EXERCISE_PROMPT_VERSION,
+      schema: exerciseSchema,
+      settings,
+      sendsCode: false,
+      build: (template, language) =>
+        buildExercisePrompt(template, { pattern, languageId, level: settings.level, language }),
+    });
+    return asked.kind === 'done'
+      ? { kind: 'generated', exercise: asked.data, language: asked.language }
+      : asked;
+  }
+
+  /** «Понимаю ли я изменения»: вопросы по изменениям (src/core/understand.ts). */
+  async quizQuestions(diff: string, uri: vscode.Uri | undefined): Promise<Asked<Quiz>> {
+    const settings = this.quizSettings(uri);
+    if (typeof settings === 'string') {
+      return { kind: 'refused', message: settings };
+    }
+    return this.ask({
+      what: 'вопросы по изменениям',
+      version: QUESTIONS_PROMPT_VERSION,
+      schema: questionsSchema,
+      settings,
+      sendsCode: true,
+      build: (template, language) =>
+        buildQuestionsPrompt(template, { diff, level: settings.level, language }),
+    });
+  }
+
+  /** Оценка ответов на вопросы по изменениям. */
+  async quizAnswers(
+    diff: string,
+    quiz: Quiz,
+    answers: string[],
+    uri: vscode.Uri | undefined,
+  ): Promise<Asked<QuizResult[]>> {
+    const settings = this.quizSettings(uri);
+    if (typeof settings === 'string') {
+      return { kind: 'refused', message: settings };
+    }
+    const asked = await this.ask({
+      what: 'ответы на вопросы по изменениям',
+      version: ANSWERS_PROMPT_VERSION,
+      schema: answersSchema,
+      settings,
+      sendsCode: true,
+      build: (template, language) =>
+        buildAnswersPrompt(template, { diff, quiz, answers, level: settings.level, language }),
+    });
+    return asked.kind === 'done' ? { ...asked, data: asked.data.answers } : asked;
+  }
+
+  /** Можно ли отправить этот файл модели — для изменений, которые собирает «Понимаю ли я». */
+  sendable(doc: vscode.TextDocument): boolean {
+    return typeof this.allowed(doc) !== 'string';
+  }
+
+  /** Настройки папки, где смотрят изменения: битый конфиг и контрольная останавливают и это. */
+  private quizSettings(uri: vscode.Uri | undefined): Settings | string {
+    const settings = this.settings.get(uri);
+    if (settings.configError) {
+      return `исправь ${CONFIG_PATH}: ${settings.configError}`;
+    }
+    if (settings.course.silent) {
+      return `контрольная: в этой папке Adviser молчит (${CONFIG_PATH})`;
+    }
+    return settings;
+  }
+
+  /**
+   * Запрос со своим промптом и схемой: провайдер, бюджет, согласие (если уходит код), маскировка
+   * секретов, повтор на ответ не по схеме. Ошибки — без всплывающих окон, в лог.
+   */
+  private async ask<T>(task: {
+    what: string;
+    version: string;
+    schema: z.ZodType<T>;
+    settings: Settings;
+    sendsCode: boolean;
+    build: (template: PromptTemplate, language: AdviceLanguage) => ModelRequest;
+  }): Promise<Asked<T>> {
     try {
       const main = await createProvider(this.context);
       if (typeof main === 'string') {
@@ -330,20 +390,23 @@ export class Reviewer {
       if (typeof budget === 'string') {
         return { kind: 'refused', message: budget };
       }
-      const settings = this.settings.get(uri);
-      const language = resolveLanguage(settings.language, vscode.env.language);
+      const denied = task.sendsCode && (await this.denied(budget.configured, true));
+      if (denied) {
+        return { kind: 'refused', message: denied };
+      }
       const template = parseTemplate(
-        await readBundled(this.context, 'prompts', `${EXERCISE_PROMPT_VERSION}.md`),
+        await readBundled(this.context, 'prompts', `${task.version}.md`),
       );
-      const request = buildExercisePrompt(template, {
-        pattern,
-        languageId,
-        level: settings.level,
-        language,
-      });
-      this.log.info(`упражнение: ${pattern.id}, ${languageId}, ${EXERCISE_PROMPT_VERSION}`);
+      const language = resolveLanguage(task.settings.language, vscode.env.language);
+      const built = task.build(template, language);
+      const request = {
+        ...built,
+        system: redact(built.system).text,
+        prompt: redact(built.prompt).text,
+      };
+      this.log.info(`${task.what}, ${task.version}`);
       const result = await runStructured(
-        exerciseSchema,
+        task.schema,
         budget.configured.provider,
         request,
         undefined,
@@ -353,10 +416,10 @@ export class Reviewer {
         this.log.warn(result.error);
         return { kind: 'failed', error: result.error, invalid: result.invalid };
       }
-      return { kind: 'generated', exercise: result.data, language };
+      return { kind: 'done', data: result.data, language };
     } catch (e) {
       this.log.error(
-        `упражнение не получилось: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
+        `${task.what}: не получилось: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
       );
       return { kind: 'failed', error: String(e), invalid: false };
     }

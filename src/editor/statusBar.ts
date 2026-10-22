@@ -209,6 +209,10 @@ export async function showMenu(
         label: '$(mortar-board) Упражнение на частую ошибку',
         run: () => vscode.commands.executeCommand('adviser.exercise'),
       },
+      {
+        label: '$(git-compare) Понимаю ли я изменения',
+        run: () => vscode.commands.executeCommand('adviser.understandChanges'),
+      },
       separator,
       ...modes,
       separator,

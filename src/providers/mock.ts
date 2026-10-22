@@ -2,6 +2,7 @@ import type { ModelRequest, Provider } from '../core/engine';
 import type { Review } from '../core/reviewSchema';
 import { exerciseJsonSchema } from '../core/exercise';
 import { checkJsonSchema } from '../core/selfCheck';
+import { answersJsonSchema, questionsJsonSchema } from '../core/understand';
 
 /** Заготовленный ответ: интерфейс и тесты проверяются без сети и токенов. */
 export const mockReview: Review = {
@@ -47,6 +48,28 @@ export const MOCK_RIGHT = 'mock: right';
 export const mockProvider: Provider = {
   complete: async (request) => {
     lastMockRequest = request;
+    if (request.jsonSchema === questionsJsonSchema) {
+      return {
+        summary: 'Mock: изменение добавляет функцию.',
+        questions: [
+          { question: 'Mock: что вернёт функция?', file: 'mock.js', answer: 'Mock: число.' },
+          { question: 'Mock: зачем проверка?', file: 'mock.js', answer: 'Mock: от пустого.' },
+        ],
+      };
+    }
+    if (request.jsonSchema === answersJsonSchema) {
+      // Верен ответ с меткой MOCK_RIGHT.
+      const answers = [...request.prompt.matchAll(/<answer>([\s\S]*?)<\/answer>/g)].map(
+        (m) => m[1],
+      );
+      return {
+        answers: answers.map((text, index) => ({
+          index,
+          understood: text.includes(MOCK_RIGHT),
+          feedback: text.includes(MOCK_RIGHT) ? 'Mock: верно.' : 'Mock: на самом деле — число.',
+        })),
+      };
+    }
     if (request.jsonSchema === exerciseJsonSchema) {
       return {
         task: 'Mock: функция возвращает первый товар из списка.',
