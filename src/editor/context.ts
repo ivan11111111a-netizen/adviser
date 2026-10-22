@@ -8,6 +8,7 @@ import {
 } from '../core/contextBuilder';
 import type { Settings } from '../core/projectConfig';
 import { AGENT_FILES, renderRules, RULES_FILE } from '../core/rules';
+import { ownerUri } from './settings';
 import { documentSymbols } from './symbols';
 
 /** Окружение функции для промпта: замечания инструментов, скелет файла, вызовы, зависимости. */
@@ -53,7 +54,7 @@ async function calledFromOtherFiles(
   range: LineRange,
   allowed: (doc: vscode.TextDocument) => boolean,
 ): Promise<string[]> {
-  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  const folder = vscode.workspace.getWorkspaceFolder(ownerUri(doc.uri));
   if (!folder) {
     return [];
   }
@@ -89,7 +90,7 @@ async function calledFromOtherFiles(
 
 /** Правила стиля из корня проекта: .adviser/rules.md и, если включено, файлы для ИИ-агентов. */
 export async function readRules(doc: vscode.TextDocument, settings: Settings): Promise<string> {
-  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  const folder = vscode.workspace.getWorkspaceFolder(ownerUri(doc.uri));
   if (!folder) {
     return '';
   }
@@ -110,7 +111,7 @@ export async function readRules(doc: vscode.TextDocument, settings: Settings): P
 
 /** Версии зависимостей из корня проекта: package.json или requirements.txt. */
 async function readDependencies(doc: vscode.TextDocument): Promise<Record<string, string>> {
-  const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+  const folder = vscode.workspace.getWorkspaceFolder(ownerUri(doc.uri));
   if (!folder) {
     return {};
   }

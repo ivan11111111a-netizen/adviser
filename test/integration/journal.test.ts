@@ -85,6 +85,10 @@ suite('Журнал ошибок', () => {
   test('«Проверь меня»: неверный ответ — отзыв и ещё попытка, верный — объяснение и отметка в журнале', async () => {
     const before = api.journal.all().length;
     const { doc } = await reviewNew();
+    assert.ok(
+      api.journal.all()[before],
+      `новых случаев нет: ${before} → ${api.journal.all().length}, активный ${vscode.window.activeTextEditor?.document.uri.toString()}, ${doc.uri.toString()}`,
+    );
     const id = api.journal.all()[before].id; // empty-collection
     const at = new vscode.Position(1, 5);
     // Ссылка из hover, но с ответом в аргументах: окно ввода тест не заполнит.
@@ -110,6 +114,17 @@ suite('Журнал ошибок', () => {
     assert.strictEqual(api.journal.get(id)?.explained, true);
     assert.strictEqual(api.journal.get(id)?.step, 2);
     assert.match(api.lastMockRequest()!.prompt, /<answer>\nmock: right\n<\/answer>/);
+  });
+
+  test('закрытый безымянный файл забывается: его имя достанется новому файлу', async () => {
+    const { doc } = await reviewNew();
+    assert.ok(vscode.languages.getDiagnostics(doc.uri).length > 0);
+    await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    // Документ закрывается не сразу после редактора.
+    for (let i = 0; i < 40 && vscode.languages.getDiagnostics(doc.uri).length; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
   });
 
   test('упражнение: новый файл с функцией, разбор в нём в журнал не идёт', async () => {

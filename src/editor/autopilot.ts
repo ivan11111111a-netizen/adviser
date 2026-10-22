@@ -6,7 +6,7 @@ import { lineEdits } from './edits';
 import type { Findings } from './findings';
 import { clock, doNotDisturbUntil, setDoNotDisturb } from './mode';
 import { showReview, type Outcome, type Reviewer } from './reviewer';
-import type { ProjectSettings } from './settings';
+import { REVIEWED_SCHEMES, type ProjectSettings } from './settings';
 import type { StatusBar } from './statusBar';
 import { documentSymbols } from './symbols';
 
@@ -158,7 +158,7 @@ export class Autopilot implements vscode.Disposable {
   }
 
   private eligible(doc: vscode.TextDocument) {
-    if (doc.uri.scheme !== 'file' && doc.uri.scheme !== 'untitled') {
+    if (!(REVIEWED_SCHEMES as readonly string[]).includes(doc.uri.scheme)) {
       return false;
     }
     const head = Array.from({ length: Math.min(20, doc.lineCount) }, (_, i) => doc.lineAt(i).text);

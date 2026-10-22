@@ -31,7 +31,7 @@ import { clearJournal, exportJournal, Journal } from './editor/journal';
 import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
 import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
-import { ProjectSettings } from './editor/settings';
+import { ProjectSettings, REVIEWED_SCHEMES } from './editor/settings';
 import {
   chooseLevel,
   openWalkthrough,
@@ -131,12 +131,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       feedback.hidePattern(args),
     ),
     vscode.languages.registerCodeActionsProvider(
-      [{ scheme: 'file' }, { scheme: 'untitled' }],
+      REVIEWED_SCHEMES.map((scheme) => ({ scheme })),
       feedbackActions(findings, patterns),
       { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
     ),
     vscode.languages.registerHoverProvider(
-      [{ scheme: 'file' }, { scheme: 'untitled' }],
+      REVIEWED_SCHEMES.map((scheme) => ({ scheme })),
       hoverProvider(findings, journal),
     ),
   );

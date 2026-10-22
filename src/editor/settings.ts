@@ -10,6 +10,25 @@ import { currentLevel, currentMode } from './mode';
 
 export const CONFIG_PATH = '.adviser/config.json';
 
+export const NOTEBOOK_CELL_SCHEME = 'vscode-notebook-cell';
+
+/** Где Adviser разбирает код: файлы, безымянные файлы и ячейки ноутбуков (Jupyter). */
+export const REVIEWED_SCHEMES = ['file', 'untitled', NOTEBOOK_CELL_SCHEME] as const;
+
+/**
+ * Чей это документ на диске. У ячейки ноутбука свой адрес (vscode-notebook-cell:), а папка
+ * проекта, настройки и ignore — у самого ноутбука. Путь (fsPath) у ячейки тот же, что у ноутбука.
+ */
+export function ownerUri(uri: vscode.Uri): vscode.Uri {
+  if (uri.scheme !== NOTEBOOK_CELL_SCHEME) {
+    return uri;
+  }
+  const notebook = vscode.workspace.notebookDocuments.find((nb) =>
+    nb.getCells().some((cell) => cell.document.uri.toString() === uri.toString()),
+  );
+  return notebook?.uri ?? uri.with({ scheme: 'file', fragment: '' });
+}
+
 /** Действующие настройки файла. configError — файлы проекта не разобраны, разборы стоят. */
 export type FileSettings = Settings & { configError?: string };
 
@@ -61,7 +80,8 @@ export class ProjectSettings implements vscode.Disposable {
     return settings;
   }
 
-  get(uri?: vscode.Uri): FileSettings {
+  get(cellOrFile?: vscode.Uri): FileSettings {
+    const uri = cellOrFile && ownerUri(cellOrFile);
     const folder = uri && vscode.workspace.getWorkspaceFolder(uri);
     const loaded = folder ? this.loaded.get(folder.uri.toString()) : undefined;
     const config = vscode.workspace.getConfiguration('adviser', uri);
@@ -77,9 +97,9 @@ export class ProjectSettings implements vscode.Disposable {
     return loaded?.error ? { ...settings, configError: loaded.error } : settings;
   }
 
-  /** Файл попадает под ignore своего проекта. */
+  /** Файл попадает под ignore своего проекта. Ячейка — если под него попадает её ноутбук. */
   ignored(doc: vscode.TextDocument, settings: Settings): boolean {
-    const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
+    const folder = vscode.workspace.getWorkspaceFolder(ownerUri(doc.uri));
     return (
       !!folder &&
       settings.ignore.some(

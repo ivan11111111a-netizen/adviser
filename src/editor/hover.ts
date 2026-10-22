@@ -4,6 +4,7 @@ import { REMIND_FROM, repeatsOf, solutionDelayActive, solutionWait } from '../co
 import { plural } from '../core/plural';
 import type { Finding, Findings } from './findings';
 import type { Journal } from './journal';
+import { NOTEBOOK_CELL_SCHEME, ownerUri } from './settings';
 
 export const REVEAL_COMMAND = 'adviser.reveal';
 export const OPEN_CASE_COMMAND = 'adviser.openCase';
@@ -128,9 +129,15 @@ export async function openCase(log: vscode.LogOutputChannel, args?: CaseArgs) {
   if (!args) {
     return;
   }
+  const uri = vscode.Uri.parse(args.file);
+  if (uri.scheme === NOTEBOOK_CELL_SCHEME) {
+    // Ячейку отдельно не открыть — открываем её ноутбук.
+    await vscode.commands.executeCommand('vscode.open', ownerUri(uri));
+    return;
+  }
   let doc: vscode.TextDocument;
   try {
-    doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(args.file));
+    doc = await vscode.workspace.openTextDocument(uri);
   } catch (e) {
     // Файл удалили или переименовали, а несохранённый Untitled закрыли.
     log.info(`прошлый случай не открыт: ${String(e)}`);

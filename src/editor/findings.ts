@@ -49,7 +49,18 @@ export class Findings implements vscode.Disposable {
   private readonly byUri = new Map<string, Finding[]>();
   /** Файлы упражнений: ошибки в них заложены нарочно, в журнал и профиль они не идут. */
   private readonly exercises = new Set<string>();
-  private readonly subscription = vscode.workspace.onDidChangeTextDocument((e) => this.edited(e));
+  private readonly subscriptions = [
+    vscode.workspace.onDidChangeTextDocument((e) => this.edited(e)),
+    // Закрытый безымянный файл или ячейка не вернутся, а их адрес достанется новому документу
+    // (Untitled-1), и тот получил бы чужие подчёркивания и случаи. Файлы на диске помним.
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      if (doc.uri.scheme !== 'file') {
+        this.byUri.delete(doc.uri.toString());
+        this.exercises.delete(doc.uri.toString());
+        this.diagnostics.delete(doc.uri);
+      }
+    }),
+  ];
 
   constructor(private readonly journal: Journal) {}
 
@@ -183,7 +194,7 @@ export class Findings implements vscode.Disposable {
   }
 
   dispose() {
-    this.subscription.dispose();
+    this.subscriptions.forEach((s) => s.dispose());
     this.diagnostics.dispose();
   }
 
