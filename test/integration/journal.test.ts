@@ -165,6 +165,24 @@ suite('Журнал ошибок', () => {
     assert.strictEqual(change.range.start.line, 1);
   });
 
+  test('пауза перед решением: always — вместо кнопки «через N с», off — кнопка на месте', async () => {
+    const config = vscode.workspace.getConfiguration('adviser');
+    const at = new vscode.Position(1, 5);
+    try {
+      await config.update('solutionDelay', 'always', vscode.ConfigurationTarget.Global);
+      const { doc } = await reviewNew();
+      let text = await hoverText(doc.uri, at);
+      assert.match(text, /решение — через \d+ с: попробуй сначала сам/);
+      assert.doesNotMatch(text, /\[Показать решение\]/);
+
+      await config.update('solutionDelay', 'off', vscode.ConfigurationTarget.Global);
+      text = await hoverText(doc.uri, at);
+      assert.match(text, /\[Показать решение\]/);
+    } finally {
+      await config.update('solutionDelay', undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   test('в третий раз за неделю hover напоминает о повторе и ведёт к прошлому случаю', async () => {
     await reviewNew();
     const { doc: previous } = await reviewNew();

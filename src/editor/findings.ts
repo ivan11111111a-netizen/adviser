@@ -96,6 +96,7 @@ export class Findings implements vscode.Disposable {
           text: diagnosticText(f.issue, f.presentation),
           at: now,
           step,
+          reviewer: f.presentation === 'reviewer' || undefined,
         });
       }
       return finding;
@@ -143,6 +144,16 @@ export class Findings implements vscode.Disposable {
         this.show(matching[0].uri);
       }
     }
+  }
+
+  byId(id: string): Finding | undefined {
+    for (const list of this.byUri.values()) {
+      const finding = list.find((f) => f.id === id);
+      if (finding) {
+        return finding;
+      }
+    }
+    return undefined;
   }
 
   /** Открывает ступень замечания. undefined — замечания уже нет: файл разобран заново. */

@@ -109,7 +109,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     ),
     // Не объявлены в package.json, поэтому их нет в палитре: их зовут только ссылки в hover.
     vscode.commands.registerCommand(REVEAL_COMMAND, (args?: RevealArgs) =>
-      revealStep(findings, log, args),
+      revealStep(findings, opened, log, args),
     ),
     vscode.commands.registerCommand(OPEN_CASE_COMMAND, (args?: CaseArgs) => openCase(log, args)),
     vscode.commands.registerCommand(FEEDBACK_COMMAND, (args?: FeedbackArgs) =>

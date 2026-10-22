@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { diagnosticText, hoverView, shortQuote, type Step } from '../core/disclosure';
-import { REMIND_FROM, repeatsOf } from '../core/journal';
+import { REMIND_FROM, repeatsOf, solutionDelayActive, solutionWait } from '../core/journal';
 import { plural } from '../core/plural';
-import type { Findings } from './findings';
+import type { Finding, Findings } from './findings';
 import type { Journal } from './journal';
 
 export const REVEAL_COMMAND = 'adviser.reveal';
@@ -65,8 +65,11 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
           md.appendMarkdown(`**Решение.** ${view.fix.description}\n`);
           md.appendCodeblock(view.fix.code, languageId);
         }
+        const wait = solutionWaitFor(journal, finding);
         const buttons = view.actions.map((step) =>
-          link(LABEL[step], REVEAL_COMMAND, { id: finding.id, step } satisfies RevealArgs),
+          step === 3 && wait > 0
+            ? `_решение — через ${Math.ceil(wait / 1000)} с: попробуй сначала сам_`
+            : link(LABEL[step], REVEAL_COMMAND, { id: finding.id, step } satisfies RevealArgs),
         );
         if (buttons.length) {
           md.appendMarkdown(`**Adviser:** ${buttons.join(' · ')}`);
@@ -76,6 +79,22 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
       return new vscode.Hover(sections);
     },
   };
+}
+
+/**
+ * Сколько ещё ждать «Показать решение» (вопрос 2 раздела 16 плана): adviser.solutionDelay и журнал
+ * решают, включена ли пауза. Ревьюеру — без паузы.
+ */
+function solutionWaitFor(journal: Journal, finding: Finding): number {
+  const entry = journal.get(finding.id);
+  if (!entry || finding.presentation === 'reviewer') {
+    return 0;
+  }
+  const setting = vscode.workspace
+    .getConfiguration('adviser', finding.uri)
+    .get<string>('solutionDelay', 'auto');
+  const now = Date.now();
+  return solutionDelayActive(journal.all(), now, setting) ? solutionWait(entry, now) : 0;
 }
 
 /** Ссылка «Прошлый случай» в hover: файл на той строке, где была ошибка. */
@@ -99,9 +118,20 @@ export async function openCase(log: vscode.LogOutputChannel, args?: CaseArgs) {
 /** Кнопка в hover: открыть ступень и показать hover заново — после клика он остаётся старым. */
 export async function revealStep(
   findings: Findings,
+  journal: Journal,
   log: vscode.LogOutputChannel,
   args?: RevealArgs,
 ) {
+  const before = args && findings.byId(args.id);
+  const wait = before ? solutionWaitFor(journal, before) : 0;
+  if (args?.step === 3 && wait > 0) {
+    // Ссылка из старой подсказки: пауза ещё не прошла.
+    vscode.window.setStatusBarMessage(
+      `Adviser: решение — через ${Math.ceil(wait / 1000)} с, попробуй сначала сам`,
+      6000,
+    );
+    return;
+  }
   const finding = args && findings.reveal(args.id, args.step);
   if (!finding) {
     return;

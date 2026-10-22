@@ -12,6 +12,8 @@ import {
   openCasesIn,
   renderReport,
   repeatsOf,
+  solutionDelayActive,
+  solutionWait,
   weeklyReport,
   WEEK,
   type JournalEntry,
@@ -54,6 +56,30 @@ test('mergeJournals: объединение по id, ступени только
   const b = { ...a, step: 1 as const, resolvedAt: now };
   const other = entry('y', 1);
   expect(mergeJournals([a], [b, other])).toEqual([{ ...a, step: 2, resolvedAt: now }, other]);
+});
+
+describe('пауза перед решением', () => {
+  const opened = (n: number, step: 1 | 2 | 3, over: Partial<JournalEntry> = {}) =>
+    Array.from({ length: n }, () => entry('off-by-one', 1, { step, ...over }));
+
+  test('auto: включается, если решение открывали в 70% случаев и чаще (от 10)', () => {
+    expect(solutionDelayActive([...opened(7, 3), ...opened(3, 1)], now, 'auto')).toBe(true);
+    expect(solutionDelayActive([...opened(6, 3), ...opened(4, 2)], now, 'auto')).toBe(false);
+    expect(solutionDelayActive(opened(9, 3), now, 'auto')).toBe(false);
+  });
+
+  test('ревьюер и critical не считаются; always и off — без счёта', () => {
+    expect(solutionDelayActive(opened(12, 3, { reviewer: true }), now, 'auto')).toBe(false);
+    expect(solutionDelayActive(opened(12, 3, { severity: 'critical' }), now, 'auto')).toBe(false);
+    expect(solutionDelayActive([], now, 'always')).toBe(true);
+    expect(solutionDelayActive(opened(12, 3), now, 'off')).toBe(false);
+  });
+
+  test('solutionWait: минута с появления замечания, у critical — без ожидания', () => {
+    expect(solutionWait({ at: now - 20_000, severity: 'warning' }, now)).toBe(40_000);
+    expect(solutionWait({ at: now - 90_000, severity: 'warning' }, now)).toBe(0);
+    expect(solutionWait({ at: now, severity: 'critical' }, now)).toBe(0);
+  });
 });
 
 test('disagreements и ответ при слиянии журналов', () => {

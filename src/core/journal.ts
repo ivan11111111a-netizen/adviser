@@ -31,6 +31,8 @@ export const journalEntrySchema = z.object({
   resolvedAt: z.number().optional(),
   /** Ответ человека из лампочки (6.11 плана): «понял» или «не согласен». */
   feedback: z.enum(['understood', 'disagree']).optional(),
+  /** Показан в режиме «Ревьюер»: решение открыто сразу, в «дошёл сам» такой случай не считается. */
+  reviewer: z.boolean().optional(),
 });
 
 export type JournalEntry = z.infer<typeof journalEntrySchema>;
@@ -170,6 +172,38 @@ export function openCasesIn(
   );
 }
 
+/** Сколько ждать «Показать решение», когда пауза включена (вопрос 2 раздела 16 плана). */
+export const SOLUTION_DELAY_MS = 60_000;
+const DELAY_WINDOW = 14 * DAY;
+const DELAY_MIN_CASES = 10;
+const DELAY_SHARE = 0.7;
+
+/**
+ * Пауза перед решением: always — всегда, off — никогда, auto — если за две недели человек открывал
+ * решение в большинстве случаев (от 70% из хотя бы 10): значит, он не успевает подумать сам.
+ */
+export function solutionDelayActive(
+  entries: readonly JournalEntry[],
+  now: number,
+  setting: string,
+): boolean {
+  if (setting === 'always' || setting === 'off') {
+    return setting === 'always';
+  }
+  const recent = entries.filter(
+    (e) => !e.reviewer && e.severity !== 'critical' && now - e.at <= DELAY_WINDOW,
+  );
+  return (
+    recent.length >= DELAY_MIN_CASES &&
+    recent.filter((e) => e.step === 3).length / recent.length >= DELAY_SHARE
+  );
+}
+
+/** Сколько ещё ждать решения по этому случаю, мс; 0 — можно. */
+export function solutionWait(entry: Pick<JournalEntry, 'at' | 'severity'>, now: number): number {
+  return entry.severity === 'critical' ? 0 : Math.max(0, entry.at + SOLUTION_DELAY_MS - now);
+}
+
 /** С какого «не согласен» по одному типу ошибки предлагать больше его не показывать (6.11 плана). */
 export const OFFER_HIDE_AFTER = 3;
 
@@ -273,7 +307,7 @@ export function weeklyReport(entries: readonly JournalEntry[], now: number): Wee
   const week = countPatterns(entries, from, now + 1);
   const previous = countPatterns(entries, from - WEEK, from);
   const resolved = entries.filter(
-    (e) => e.resolvedAt !== undefined && e.resolvedAt >= from && e.resolvedAt <= now,
+    (e) => !e.reviewer && e.resolvedAt !== undefined && e.resolvedAt >= from && e.resolvedAt <= now,
   );
   const selfSolved = resolved.filter((e) => e.step < 3).length;
   const inWeek = entries.filter((e) => e.at >= from && e.at <= now);
