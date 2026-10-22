@@ -90,6 +90,19 @@ test('disagreements и ответ при слиянии журналов', () =>
   expect(weeklyReport(all, now).disagreed).toBe(1);
 });
 
+test('«объяснил сам»: не теряется при слиянии, считается в отчёте и сводке', () => {
+  const a = entry('off-by-one', 1, { id: 'x1', explained: true });
+  const all = [a, entry('off-by-one', 2), entry('loose-equality', 10, { explained: true })];
+  expect(mergeJournals([a], [{ ...a, explained: undefined }])[0].explained).toBe(true);
+  expect(mergeJournals([{ ...a, explained: undefined }], [a])[0].explained).toBe(true);
+  const report = weeklyReport(all, now);
+  expect(report.explained).toBe(1);
+  expect(
+    renderReport(report, { title: (id) => id, day: () => 'день', level: 'beginner' }),
+  ).toContain('Сам объяснил, в чём ошибка («Проверь меня»): 1.');
+  expect(journalSummary(all)).toMatchObject({ explained: 2 });
+});
+
 describe('combineJournals', () => {
   test('очистка в одном окне не воскрешается другим, старше года — уходит', () => {
     const old = entry('off-by-one', 400);

@@ -1,7 +1,7 @@
 import { hasHint } from '../src/core/disclosure';
 // Судья намёков (этап 3): вторая модель проверяет, что hint наводит на проблему, но не выдаёт ответ.
 import { z } from 'zod';
-import { InvalidResponseError, type ModelRequest, type Provider } from '../src/core/engine';
+import { runStructured, type ModelRequest, type Provider } from '../src/core/engine';
 import { numberLines } from '../src/core/promptBuilder';
 import type { Issue } from '../src/core/reviewSchema';
 
@@ -59,24 +59,10 @@ export async function judgeHints(
   issues: Issue[],
 ): Promise<JudgeResult> {
   const wanted = new Set(judgedIndexes(issues));
-  let lastError = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let raw: unknown;
-    try {
-      raw = await provider.complete(request);
-    } catch (e) {
-      if (!(e instanceof InvalidResponseError)) {
-        return { ok: false, error: e instanceof Error ? e.message : String(e) };
-      }
-      lastError = e.message;
-      continue;
-    }
-    const parsed = responseSchema.safeParse(raw);
-    if (parsed.success) {
-      const judgments = parsed.data.hints.filter((j) => wanted.delete(j.index));
-      return { ok: true, judgments: judgments.sort((a, b) => a.index - b.index) };
-    }
-    lastError = parsed.error.message;
+  const result = await runStructured(responseSchema, provider, request);
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
-  return { ok: false, error: `ответ судьи дважды не прошёл схему: ${lastError}` };
+  const judgments = result.data.hints.filter((j) => wanted.delete(j.index));
+  return { ok: true, judgments: judgments.sort((a, b) => a.index - b.index) };
 }

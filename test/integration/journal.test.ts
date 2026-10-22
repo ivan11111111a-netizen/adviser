@@ -14,9 +14,11 @@ interface Entry {
   line: number;
   resolvedAt?: number;
   feedback?: string;
+  explained?: boolean;
 }
 type Node = { kind: string; patternId?: string };
 interface TestApi {
+  lastMockRequest(): { prompt: string } | undefined;
   journal: {
     all(): readonly Entry[];
     get(id: string): Entry | undefined;
@@ -78,6 +80,36 @@ suite('Журнал ошибок', () => {
     await vscode.commands.executeCommand('adviser.reviewFunction');
     assert.ok(added.every((e) => api.journal.get(e.id)?.resolvedAt !== undefined));
     assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+  });
+
+  test('«Проверь меня»: неверный ответ — отзыв и ещё попытка, верный — объяснение и отметка в журнале', async () => {
+    const before = api.journal.all().length;
+    const { doc } = await reviewNew();
+    const id = api.journal.all()[before].id; // empty-collection
+    const at = new vscode.Position(1, 5);
+    // Ссылка из hover, но с ответом в аргументах: окно ввода тест не заполнит.
+    const link = /\[Проверь меня\]\(command:adviser\.check\?([^)]+)\)/.exec(
+      await hoverText(doc.uri, at),
+    );
+    assert.ok(link, 'в hover нет «Проверь меня»');
+    const [args] = JSON.parse(decodeURIComponent(link[1])) as [{ id: string }];
+    assert.strictEqual(args.id, id);
+
+    await vscode.commands.executeCommand('adviser.check', { ...args, answer: 'не знаю' });
+    let text = await hoverText(doc.uri, at);
+    assert.match(text, /\*\*Пока не то\.\*\* Mock: пока нет/);
+    assert.match(text, /\[Ответить ещё раз\]/);
+    assert.strictEqual(api.journal.get(id)?.explained, undefined);
+    assert.strictEqual(api.journal.get(id)?.step, 1);
+
+    await vscode.commands.executeCommand('adviser.check', { ...args, answer: 'mock: right' });
+    text = await hoverText(doc.uri, at);
+    assert.match(text, /✓ Mock: верно\./);
+    assert.match(text, /Mock-объяснение/);
+    assert.doesNotMatch(text, /Ответить ещё раз|Проверь меня/);
+    assert.strictEqual(api.journal.get(id)?.explained, true);
+    assert.strictEqual(api.journal.get(id)?.step, 2);
+    assert.match(api.lastMockRequest()!.prompt, /<answer>\nmock: right\n<\/answer>/);
   });
 
   test('правка строк замечания прячет его до нового разбора, а разбор продолжает тот же случай', async () => {

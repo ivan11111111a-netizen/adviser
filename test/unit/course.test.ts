@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { applyCourse, NO_COURSE } from '../../src/core/course';
+import { applyCourse, applyCourseText, NO_COURSE } from '../../src/core/course';
 import type { Issue } from '../../src/core/reviewSchema';
 import { mockReview } from '../../src/providers/mock';
 
@@ -23,6 +23,15 @@ test('запретные слова: в текстах — «…», решени
   // «sort» — целым словом: «sorted» не задевает.
   expect(result.explanation).toBe('… отдаёт номер и элемент; sorted тут ни при чём.');
   expect(result.fix).toEqual({ description: '', code: '' });
+});
+
+test('applyCourseText — те же запретные слова в любом тексте Adviser', () => {
+  expect(
+    applyCourseText('Верно, enumerate тут подходит.', {
+      ...NO_COURSE,
+      forbidden: ['enumerate', ' '],
+    }),
+  ).toBe('Верно, … тут подходит.');
 });
 
 test('hideSolutions — решения нет ни у одного замечания', () => {

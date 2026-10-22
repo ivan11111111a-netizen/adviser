@@ -118,7 +118,10 @@ const COMMANDS = {
     const status = await page.evaluate(
       () => document.getElementById('status.editor.selection')?.innerText ?? null,
     );
-    if (!status?.startsWith(`Ln ${line},`)) {
+    // goto 5 или goto 5:12 — строка и колонка.
+    const [ln, col] = line.split(':');
+    const expected = col ? `Ln ${ln}, Col ${col}` : `Ln ${ln},`;
+    if (!status?.startsWith(expected)) {
       throw new Error(`курсор не на строке ${line}: статус-бар «${status}»`);
     }
   },

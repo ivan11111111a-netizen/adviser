@@ -1,5 +1,6 @@
 import type { ModelRequest, Provider } from '../core/engine';
 import type { Review } from '../core/reviewSchema';
+import { checkJsonSchema } from '../core/selfCheck';
 
 /** Заготовленный ответ: интерфейс и тесты проверяются без сети и токенов. */
 export const mockReview: Review = {
@@ -38,9 +39,21 @@ export const MOCK_CLEAN = 'mock: clean';
 /** Последний запрос к mock: тесты смотрят, что ушло бы модели. */
 export let lastMockRequest: ModelRequest | undefined;
 
+/** Ответ «Проверь меня» с этой меткой mock считает верным. */
+export const MOCK_RIGHT = 'mock: right';
+
 export const mockProvider: Provider = {
   complete: async (request) => {
     lastMockRequest = request;
+    if (request.jsonSchema === checkJsonSchema) {
+      const understood = request.prompt.includes(MOCK_RIGHT);
+      return {
+        understood,
+        feedback: understood
+          ? 'Mock: верно.'
+          : 'Mock: пока нет. Что здесь будет с пустыми данными?',
+      };
+    }
     return request.prompt.includes(MOCK_CLEAN)
       ? { summary: 'Mock: замечаний нет.', issues: [] }
       : structuredClone(mockReview);

@@ -32,6 +32,8 @@ export interface Finding extends NewFinding {
    * Скрытое ждёт нового разбора, чтобы случай в журнале продолжился или закрылся.
    */
   hidden?: boolean;
+  /** Последний ответ «Проверь меня» и отзыв на него. */
+  check?: { answer: string; understood: boolean; feedback: string };
 }
 
 // Error не используем никогда: его легко спутать с ошибкой компилятора.

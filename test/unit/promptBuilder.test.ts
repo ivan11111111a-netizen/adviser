@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   ADVICE_LANGUAGES,
   buildPrompt,
+  fillTemplate,
   LEVELS,
   numberLines,
   parseTemplate,
@@ -136,7 +137,17 @@ test('правила проекта подставляются как есть: 
   expect(buildPrompt(template, input).system).toBe('Наставник.\n');
 });
 
-const PROMPTS = readdirSync('prompts').filter((f) => f.endsWith('.md'));
+// Промпты разбора; у «Проверь меня» свой тест (selfCheck.test.ts).
+const PROMPTS = readdirSync('prompts').filter((f) => /^mentor\..*\.md$/.test(f));
+
+test('fillTemplate: разделы по выбору, готовые тексты — как есть', () => {
+  const template = parseTemplate(
+    'Начало. {{level}} {{list}}\n\n## level: beginner\n\nНовичок, {{language}}.\n\n## language: ru\n\nпо-русски',
+  );
+  expect(
+    fillTemplate(template, { level: 'beginner', language: 'ru' }, { list: () => '{{level}}' }),
+  ).toBe('Начало. Новичок, по-русски. {{level}}');
+});
 
 test.each(PROMPTS)('prompts/%s собирается для всех уровней, языков и профилей', (file) => {
   const template = parseTemplate(readFileSync(`prompts/${file}`, 'utf8'));

@@ -66,6 +66,30 @@ export function numberLines(code: string): string {
 }
 
 /**
+ * Инструкция с подставленными местами: {{вид}} — раздел «## вид: вариант» с вариантом из chosen
+ * (разделы тоже могут содержать места), или готовый текст из texts — он подставляется как есть.
+ */
+export function fillTemplate(
+  template: PromptTemplate,
+  chosen: Record<string, string>,
+  texts: Record<string, () => string> = {},
+): string {
+  const fill = (text: string): string =>
+    text.replace(/\{\{(\w+)\}\}/g, (_, kind: string) => {
+      const ready = texts[kind];
+      if (ready) {
+        return ready();
+      }
+      const section = template.sections[kind]?.[chosen[kind]];
+      if (section === undefined) {
+        throw new Error(`в промпте нет раздела «## ${kind}: ${chosen[kind]}»`);
+      }
+      return fill(section);
+    });
+  return fill(template.base);
+}
+
+/**
  * Стабильная часть (инструкция, уровень, язык, типы ошибок) идёт в system, код — в конце:
  * так работает кэширование у провайдера.
  */
@@ -74,31 +98,21 @@ export function buildPrompt(template: PromptTemplate, input: PromptInput): Model
   const profile = (input.profile ?? []).filter((p) =>
     input.patterns.some((q) => q.id === p.patternId),
   );
-  const chosen: Record<string, string> = {
-    level: input.level,
-    language: input.language,
-    profile: profile.length ? 'some' : 'none',
-    rules: input.rules ? 'some' : 'none',
-  };
-  const fill = (text: string): string =>
-    text.replace(/\{\{(\w+)\}\}/g, (_, kind: string) => {
-      if (kind === 'patterns') {
-        return renderPatterns(input.patterns, input.language);
-      }
-      if (kind === 'topPatterns') {
-        return renderProfile(profile, input.patterns, input.language);
-      }
-      if (kind === 'projectRules') {
-        // Текст из репозитория: подставляется как есть, его {{…}} не разворачиваются.
-        return input.rules ?? '';
-      }
-      const section = template.sections[kind]?.[chosen[kind]];
-      if (section === undefined) {
-        throw new Error(`в промпте нет раздела «## ${kind}: ${chosen[kind]}»`);
-      }
-      return fill(section);
-    });
-  const system = fill(template.base);
+  const system = fillTemplate(
+    template,
+    {
+      level: input.level,
+      language: input.language,
+      profile: profile.length ? 'some' : 'none',
+      rules: input.rules ? 'some' : 'none',
+    },
+    {
+      patterns: () => renderPatterns(input.patterns, input.language),
+      topPatterns: () => renderProfile(profile, input.patterns, input.language),
+      // Текст из репозитория: подставляется как есть, его {{…}} не разворачиваются.
+      projectRules: () => input.rules ?? '',
+    },
+  );
   // Промпт, который не говорит, что <context> — только справка, получил бы чужой код на разбор.
   const context =
     input.context && system.includes('<context>')

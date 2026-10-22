@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { InvalidResponseError, runReview, type Provider } from '../../src/core/engine';
+import { z } from 'zod';
+import {
+  InvalidResponseError,
+  runReview,
+  runStructured,
+  type Provider,
+} from '../../src/core/engine';
 import type { Issue } from '../../src/core/reviewSchema';
 import { mockReview } from '../../src/providers/mock';
 
@@ -21,6 +27,13 @@ function scripted(...answers: unknown[]): Provider & { calls: number } {
 }
 
 const issue = (over: Partial<Issue>): Issue => ({ ...mockReview.issues[0], ...over });
+
+test('runStructured: любая схема, тот же один повтор', async () => {
+  const schema = z.object({ understood: z.boolean() });
+  const p = scripted({ understood: 'да' }, { understood: true });
+  expect(await runStructured(schema, p, request)).toEqual({ ok: true, data: { understood: true } });
+  expect(p.calls).toBe(2);
+});
 
 describe('runReview', () => {
   test('возвращает валидный ответ с первой попытки', async () => {

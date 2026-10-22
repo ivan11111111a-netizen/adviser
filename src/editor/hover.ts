@@ -7,6 +7,13 @@ import type { Journal } from './journal';
 
 export const REVEAL_COMMAND = 'adviser.reveal';
 export const OPEN_CASE_COMMAND = 'adviser.openCase';
+export const CHECK_COMMAND = 'adviser.check';
+
+export interface CheckArgs {
+  id: string;
+  /** Ответ без окна ввода: так его передают интеграционные тесты. */
+  answer?: string;
+}
 
 export interface RevealArgs {
   id: string;
@@ -39,7 +46,7 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
         const view = hoverView(issue, finding.step, finding.presentation);
         const md = new vscode.MarkdownString();
         // Ссылки-команды работают только для своих команд: текст модели не запустит чужую.
-        md.isTrusted = { enabledCommands: [REVEAL_COMMAND, OPEN_CASE_COMMAND] };
+        md.isTrusted = { enabledCommands: [REVEAL_COMMAND, OPEN_CASE_COMMAND, CHECK_COMMAND] };
         if (here.length > 1) {
           // Подчёркивания пересекаются — подписываем, к какому из них относятся кнопки.
           md.appendMarkdown('_«');
@@ -54,6 +61,13 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
             `_Ты так уже делал ${repeats.count} ${plural(repeats.count, 'раз', 'раза', 'раз')} на этой неделе._ ` +
               `${link('Прошлый случай', OPEN_CASE_COMMAND, { file, line } satisfies CaseArgs)}\n\n`,
           );
+        }
+        if (finding.check) {
+          const { answer, understood, feedback } = finding.check;
+          md.appendMarkdown('**Твой ответ:** _');
+          md.appendText(shortQuote(answer, 200));
+          // Отзыв модели обычно сам начинается с «Верно», поэтому у верного ответа — только значок.
+          md.appendMarkdown(`_\n\n${understood ? '✓' : '**Пока не то.**'} ${feedback}\n\n`);
         }
         if (view.explanation) {
           md.appendMarkdown(`**Почему.** ${view.explanation}\n\n`);
@@ -71,6 +85,14 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
             ? `_решение — через ${Math.ceil(wait / 1000)} с: попробуй сначала сам_`
             : link(LABEL[step], REVEAL_COMMAND, { id: finding.id, step } satisfies RevealArgs),
         );
+        // Объяснить самому можно, пока видишь только намёк.
+        if (view.actions.includes(2)) {
+          buttons.unshift(
+            link(finding.check ? 'Ответить ещё раз' : 'Проверь меня', CHECK_COMMAND, {
+              id: finding.id,
+            } satisfies CheckArgs),
+          );
+        }
         if (buttons.length) {
           md.appendMarkdown(`**Adviser:** ${buttons.join(' · ')}`);
         }
@@ -137,9 +159,17 @@ export async function revealStep(
     return;
   }
   log.info(`${finding.issue.patternId}: открыта ступень ${finding.step}`);
+  await showHoverAgain(finding);
+}
+
+/**
+ * Показать hover замечания заново — после клика он остаётся старым. false — файл замечания
+ * не в активном редакторе.
+ */
+export async function showHoverAgain(finding: Finding): Promise<boolean> {
   const editor = vscode.window.activeTextEditor;
   if (editor?.document.uri.toString() !== finding.uri.toString()) {
-    return;
+    return false;
   }
   if (!finding.range.contains(editor.selection.active)) {
     editor.selection = new vscode.Selection(finding.range.start, finding.range.start);
@@ -147,4 +177,5 @@ export async function revealStep(
   // Открытый hover showHover не пересчитывает, поэтому сначала закрываем его.
   await vscode.commands.executeCommand('editor.action.hideHover');
   await vscode.commands.executeCommand('editor.action.showHover');
+  return true;
 }

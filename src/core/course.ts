@@ -22,6 +22,13 @@ const mentions = (text: string, words: string[]) => words.some((w) => wordPatter
 const censor = (text: string, words: string[]) =>
   words.reduce((out, w) => out.replace(wordPattern(w), '…'), text);
 
+/** Текст Adviser без запретных слов курса: они заменяются «…». */
+export const applyCourseText = (text: string, course: CourseRules) =>
+  censor(
+    text,
+    course.forbidden.filter((w) => w.trim()),
+  );
+
 /**
  * Замечание по правилам курса: запретные слова в текстах заменяются «…», решение, которое
  * их использует, — скрывается целиком (пустой fix: кнопки «Показать решение» не будет).

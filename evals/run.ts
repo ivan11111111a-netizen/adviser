@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { MIN_CONFIDENCE, runReview, type Provider } from '../src/core/engine';
+import { MIN_CONFIDENCE, runReview, runStructured, type Provider } from '../src/core/engine';
 import { hintLeak } from '../src/core/hintGuard';
 import { normalizePatternIds, parsePatterns, patternsFor } from '../src/core/patterns';
 import {
@@ -13,10 +13,12 @@ import {
   PROMPT_VERSION,
 } from '../src/core/promptBuilder';
 import type { Issue } from '../src/core/reviewSchema';
+import { buildCheckPrompt, CHECK_PROMPT_VERSION, checkSchema } from '../src/core/selfCheck';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../src/providers/claudeCode';
 import { mockProvider } from '../src/providers/mock';
 import { createOpenAICompatibleProvider } from '../src/providers/openaiCompatible';
 import { languageIdOf, parseCases, type EvalCase } from './cases';
+import { parseCheckCases, renderCheckReport, summarizeChecks, type CheckRecord } from './check';
 import {
   buildJudgeRequest,
   judgedIndexes,
@@ -35,9 +37,12 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
-  --suite cases|socratic наш набор evals/cases.json или настоящие ошибки новичков из Socratic
-                        Debugging Benchmark (скачивается в evals/runs/, засчитывается место ошибки)
-  --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION})
+  --suite cases|socratic|check
+                        наш набор evals/cases.json, настоящие ошибки новичков из Socratic Debugging
+                        Benchmark (скачивается в evals/runs/, засчитывается место ошибки) или
+                        «Проверь меня» на evals/check-cases.json (понял ли учащийся ошибку)
+  --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION};
+                        для --suite check — ${CHECK_PROMPT_VERSION})
   --profile <id,id,…>   профиль учащегося: эти типы ошибок как частые (по 3 раза), если в промпте
                         есть {{profile}}. Проверка, не начнёт ли модель их выдумывать
   --only <подстрока>    только случаи, в пути которых она есть: --only py/
@@ -87,6 +92,10 @@ if (args.help) {
 }
 
 const concurrency = Number(args.concurrency) || 3;
+if (args.suite === 'check') {
+  await checks();
+  process.exit(0);
+}
 const suite =
   args.suite === 'socratic'
     ? (await loadSocratic(ROOT)).cases
@@ -111,14 +120,8 @@ async function review(): Promise<RunRecord> {
   const profile = args.profile?.split(',').map((patternId) => ({ patternId, count: 3 }));
   const patterns = parsePatterns(JSON.parse(read('patterns', 'patterns.json')));
   const now = new Date();
-  // Местное время в имени файла: 20261013-2326.
-  const stamp = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16)
-    .replace(/[-:]/g, '')
-    .replace('T', '-');
   const record: RunRecord = {
-    id: `${stamp}-${args.suite === 'socratic' ? 'socratic-' : ''}${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
+    id: `${stamp(now)}-${args.suite === 'socratic' ? 'socratic-' : ''}${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
       /[^\w.-]+/g,
       '_',
     ),
@@ -225,6 +228,87 @@ function save(record: RunRecord) {
       `тишина ${s.silent} из ${s.clean}${judged} · не ответила ${s.failed} · медиана ${s.medianSeconds.toFixed(1)} с`,
   );
   console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
+}
+
+/** --suite check: «Проверь меня» на evals/check-cases.json (evals/check.ts). */
+async function checks() {
+  const language = ADVICE_LANGUAGES.find((l) => l === args.language);
+  if (!language) {
+    throw new Error(`--language: ${ADVICE_LANGUAGES.join(' или ')}`);
+  }
+  const provider = createProvider(args.provider!, args.model!);
+  // --prompt по умолчанию — промпт разбора; у проверки свой.
+  const version = args.prompt === PROMPT_VERSION ? CHECK_PROMPT_VERSION : args.prompt!;
+  const template = parseTemplate(read('prompts', `${version}.md`));
+  const items = parseCheckCases(JSON.parse(read('evals', 'check-cases.json')))
+    .filter((c) => !args.only || c.file.includes(args.only))
+    .flatMap((evalCase) => evalCase.answers.map((answer) => ({ evalCase, answer })));
+  const id = `${stamp(new Date())}-check-${args.provider}-${args.model}-${version}`.replace(
+    /[^\w.-]+/g,
+    '_',
+  );
+  console.log(`${id}: ${items.length} ответов`);
+  const records: CheckRecord[] = [];
+  await pool(items, concurrency, async ({ evalCase, answer }) => {
+    const code = read('evals', 'cases', evalCase.file);
+    const request = buildCheckPrompt(template, {
+      languageId: languageIdOf(evalCase.file)!,
+      code,
+      level: evalCase.level ?? 'beginner',
+      language,
+      issue: evalCase.issue,
+      answer: answer.text,
+    });
+    const started = Date.now();
+    const result = await runStructured(checkSchema, provider, request);
+    const record: CheckRecord = {
+      file: evalCase.file,
+      answer: answer.text,
+      expected: answer.understood,
+      seconds: (Date.now() - started) / 1000,
+    };
+    if (result.ok) {
+      record.got = result.data.understood;
+      record.feedback = result.data.feedback;
+      record.leak =
+        (!result.data.understood && hintLeak(result.data.feedback, evalCase.issue.fix, code)) ||
+        undefined;
+    } else {
+      record.error = result.error;
+    }
+    records.push(record);
+    const verdict = result.ok
+      ? `${record.got === record.expected ? 'ок' : 'НЕВЕРНО'}: ${record.feedback}`
+      : result.error;
+    console.log(`${result.ok ? '+' : '!'} ${evalCase.file} «${answer.text}» — ${verdict}`);
+  });
+  records.sort((a, b) => a.file.localeCompare(b.file) || a.answer.localeCompare(b.answer));
+  mkdirSync(RUNS, { recursive: true });
+  writeFileSync(path.join(RUNS, `${id}.json`), JSON.stringify(records, null, 2));
+  const reportFile = path.join(RUNS, `${id}.md`);
+  const meta = {
+    id,
+    date: new Date().toLocaleString('ru-RU'),
+    model: args.model!,
+    prompt: version,
+  };
+  writeFileSync(reportFile, renderCheckReport(meta, records));
+  const s = summarizeChecks(records);
+  console.log(
+    `\nоценка верна ${s.correct} из ${s.total - s.failed} · «верно» на неверный ${s.falseAccepts} · ` +
+      `«не то» на верный ${s.falseRejects} · выдаёт решение ${s.leaks} из ${s.rejected} · ` +
+      `не ответила ${s.failed} · медиана ${s.medianSeconds.toFixed(1)} с`,
+  );
+  console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
+}
+
+/** Местное время для имени файла: 20261013-2326. */
+function stamp(now: Date): string {
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16)
+    .replace(/[-:]/g, '')
+    .replace('T', '-');
 }
 
 function createProvider(kind: string, model: string): Provider {

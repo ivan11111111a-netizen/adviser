@@ -33,6 +33,8 @@ export const journalEntrySchema = z.object({
   feedback: z.enum(['understood', 'disagree']).optional(),
   /** Показан в режиме «Ревьюер»: решение открыто сразу, в «дошёл сам» такой случай не считается. */
   reviewer: z.boolean().optional(),
+  /** «Проверь меня»: человек сам объяснил ошибку, видя только намёк. */
+  explained: z.boolean().optional(),
 });
 
 export type JournalEntry = z.infer<typeof journalEntrySchema>;
@@ -70,6 +72,8 @@ export interface PatternSummary {
   count: number;
   resolved: number;
   selfSolved: number;
+  /** Объяснил сам через «Проверь меня». */
+  explained: number;
   disagreed: number;
   /** День первого и последнего случая — без времени, файлов и текстов. */
   first: string;
@@ -84,6 +88,7 @@ export function journalSummary(entries: readonly JournalEntry[]): {
   cases: number;
   resolved: number;
   selfSolved: number;
+  explained: number;
   patterns: PatternSummary[];
 } {
   const day = (t: number) => new Date(t).toISOString().slice(0, 10);
@@ -94,6 +99,7 @@ export function journalSummary(entries: readonly JournalEntry[]): {
   const stats = (list: readonly JournalEntry[]) => ({
     resolved: list.filter((e) => e.resolvedAt !== undefined).length,
     selfSolved: list.filter((e) => e.resolvedAt !== undefined && e.step < 3).length,
+    explained: list.filter((e) => e.explained).length,
   });
   return {
     cases: entries.length,
@@ -129,6 +135,7 @@ export function mergeJournals(a: JournalEntry[], b: JournalEntry[]): JournalEntr
       step: Math.max(other.step, entry.step) as Step,
       resolvedAt: resolved.length ? Math.min(...resolved) : undefined,
       feedback: other.feedback ?? entry.feedback,
+      explained: other.explained || entry.explained || undefined,
     });
   }
   return [...byId.values()].sort((x, y) => x.at - y.at);
@@ -295,6 +302,8 @@ export interface WeeklyReport {
   mastered: PatternCount[];
   /** Сколько замечаний недели человек отметил «не согласен» — мера шума (раздел 15 плана). */
   disagreed: number;
+  /** Сколько ошибок недели человек сам объяснил через «Проверь меня». */
+  explained: number;
   /** Почти всё человек исправляет сам — пора предложить уровень выше (6.7 плана). */
   levelUp: boolean;
 }
@@ -324,6 +333,7 @@ export function weeklyReport(entries: readonly JournalEntry[], now: number): Wee
     selfSolved,
     mastered: masteredPatterns(entries, now),
     disagreed: inWeek.filter((e) => e.feedback === 'disagree').length,
+    explained: inWeek.filter((e) => e.explained).length,
     levelUp:
       resolved.length >= LEVEL_UP_MIN_RESOLVED && selfSolved / resolved.length >= LEVEL_UP_SHARE,
   };
@@ -351,6 +361,9 @@ export function renderReport(report: WeeklyReport, format: ReportFormat): string
           : '.'),
       '',
     );
+  }
+  if (report.explained) {
+    lines.push(`Сам объяснил, в чём ошибка («Проверь меня»): ${report.explained}.`, '');
   }
   if (report.disagreed) {
     lines.push(`С замечаниями не согласен: ${report.disagreed}.`, '');

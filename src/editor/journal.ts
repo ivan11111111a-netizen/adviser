@@ -63,7 +63,10 @@ export class Journal implements vscode.Disposable {
     this.changed();
   }
 
-  update(id: string, patch: Partial<Pick<JournalEntry, 'step' | 'resolvedAt' | 'feedback'>>) {
+  update(
+    id: string,
+    patch: Partial<Pick<JournalEntry, 'step' | 'resolvedAt' | 'feedback' | 'explained'>>,
+  ) {
     const entry = this.get(id);
     if (entry) {
       Object.assign(entry, patch);

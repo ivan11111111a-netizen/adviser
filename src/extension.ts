@@ -14,14 +14,17 @@ import {
 } from './editor/feedback';
 import { Findings } from './editor/findings';
 import {
+  CHECK_COMMAND,
   hoverProvider,
   OPEN_CASE_COMMAND,
   openCase,
   REVEAL_COMMAND,
   revealStep,
   type CaseArgs,
+  type CheckArgs,
   type RevealArgs,
 } from './editor/hover';
+import { checkYourself } from './editor/selfCheck';
 import { readPatterns } from './editor/bundled';
 import { clearJournal, exportJournal, Journal } from './editor/journal';
 import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
@@ -114,6 +117,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       revealStep(findings, opened, log, args),
     ),
     vscode.commands.registerCommand(OPEN_CASE_COMMAND, (args?: CaseArgs) => openCase(log, args)),
+    vscode.commands.registerCommand(CHECK_COMMAND, (args?: CheckArgs) =>
+      checkYourself(reviewer, findings, opened, status, log, args),
+    ),
     vscode.commands.registerCommand(FEEDBACK_COMMAND, (args?: FeedbackArgs) =>
       feedback.answer(args),
     ),
