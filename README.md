@@ -30,7 +30,7 @@
 
 ![Мастер первого запуска](docs/images/walkthrough.png)
 
-Нужен VS Code 1.101 или новее (подходят и Cursor, Windsurf). Разбираются JavaScript, TypeScript и Python; по команде — любой язык.
+Нужен VS Code 1.101 или новее. Cursor и Windsurf должны подойти — версия выбрана ради них, — но в них Adviser ещё не проверяли. Разбираются JavaScript, TypeScript и Python; по команде — любой язык.
 
 ## Кто разбирает код
 
