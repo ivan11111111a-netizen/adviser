@@ -28,6 +28,15 @@ import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalV
 import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
 import { ProjectSettings } from './editor/settings';
+import {
+  chooseLevel,
+  openWalkthrough,
+  setupOllama,
+  setupOpenRouter,
+  setupOwnKey,
+  tryReview,
+  welcome,
+} from './editor/setup';
 import { MENU_COMMAND, showMenu, StatusBar } from './editor/statusBar';
 import { UsageTracker } from './editor/usage';
 import { lastMockRequest } from './providers/mock';
@@ -87,6 +96,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     ),
     vscode.commands.registerCommand('adviser.setApiKey', () => setApiKey(context)),
     vscode.commands.registerCommand('adviser.revokeConsent', () => consent.revoke()),
+    vscode.commands.registerCommand('adviser.openWalkthrough', () => openWalkthrough(context)),
+    vscode.commands.registerCommand('adviser.setupOpenRouter', () => setupOpenRouter(context)),
+    vscode.commands.registerCommand('adviser.setupOllama', () => setupOllama()),
+    vscode.commands.registerCommand('adviser.setupOwnKey', () => setupOwnKey(context)),
+    vscode.commands.registerCommand('adviser.chooseLevel', () => chooseLevel()),
+    vscode.commands.registerCommand('adviser.tryReview', () => tryReview(context)),
     vscode.commands.registerCommand(MENU_COMMAND, () =>
       showMenu(context, autopilot, log, settings),
     ),
@@ -111,6 +126,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       hoverProvider(findings, journal),
     ),
   );
+  void welcome(context);
   return context.extensionMode === vscode.ExtensionMode.Test
     ? { journal, journalView, lastMockRequest: () => lastMockRequest }
     : undefined;

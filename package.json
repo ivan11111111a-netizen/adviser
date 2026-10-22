@@ -36,6 +36,36 @@
         "category": "Adviser"
       },
       {
+        "command": "adviser.openWalkthrough",
+        "title": "Начало работы",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.setupOpenRouter",
+        "title": "Подключить модель: бесплатно через OpenRouter",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.setupOllama",
+        "title": "Подключить модель: локально через Ollama",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.setupOwnKey",
+        "title": "Подключить модель: свой ключ",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.chooseLevel",
+        "title": "Выбрать уровень",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.tryReview",
+        "title": "Пробный разбор",
+        "category": "Adviser"
+      },
+      {
         "command": "adviser.revokeConsent",
         "title": "Отозвать разрешение на отправку кода",
         "category": "Adviser"
@@ -88,6 +118,59 @@
       {
         "fileMatch": "**/.adviser/config.json",
         "url": "./schemas/adviser-config.schema.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "adviser.start",
+        "title": "Начало работы с Adviser",
+        "description": "ИИ-наставник для тех, кто учится программировать: подключить модель, выбрать уровень и попробовать разбор.",
+        "steps": [
+          {
+            "id": "model",
+            "title": "Кто будет разбирать код",
+            "description": "Бесплатно через OpenRouter, локально через Ollama или со своим ключом.\n[Бесплатно: OpenRouter](command:adviser.setupOpenRouter)\n[Локально: Ollama](command:adviser.setupOllama)\n[Свой ключ](command:adviser.setupOwnKey)",
+            "media": {
+              "markdown": "walkthrough/model.md"
+            },
+            "completionEvents": [
+              "onSettingChanged:adviser.model"
+            ]
+          },
+          {
+            "id": "level",
+            "title": "Твой уровень",
+            "description": "От уровня зависит, о чём Adviser говорит, а о чём молчит.\n[Выбрать уровень](command:adviser.chooseLevel)",
+            "media": {
+              "markdown": "walkthrough/level.md"
+            },
+            "completionEvents": [
+              "onCommand:adviser.chooseLevel"
+            ]
+          },
+          {
+            "id": "try",
+            "title": "Пробный разбор",
+            "description": "Учебная функция с типовой ошибкой: посмотри, как приходят намёк, объяснение и решение.\n[Попробовать](command:adviser.tryReview)",
+            "media": {
+              "markdown": "walkthrough/try.md"
+            },
+            "completionEvents": [
+              "onCommand:adviser.tryReview"
+            ]
+          },
+          {
+            "id": "journal",
+            "title": "Журнал ошибок",
+            "description": "Частые ошибки, недельный отчёт и то, что ты уже освоил.\n[Открыть журнал](command:adviser.journal.focus)",
+            "media": {
+              "markdown": "walkthrough/journal.md"
+            },
+            "completionEvents": [
+              "onView:adviser.journal"
+            ]
+          }
+        ]
       }
     ],
     "viewsWelcome": [
