@@ -3,6 +3,7 @@ import { setApiKey } from './config/provider';
 import type { ModelRequest } from './core/engine';
 import { learnerProfile } from './core/journal';
 import { Autopilot } from './editor/autopilot';
+import { Consent } from './editor/consent';
 import {
   Feedback,
   FEEDBACK_COMMAND,
@@ -46,6 +47,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   journal = await Journal.open(context, log);
   const settings = await ProjectSettings.create(log);
   const usage = new UsageTracker(context);
+  const consent = new Consent(context);
   const findings = new Findings(journal);
   const opened = journal;
   const reviewer = new Reviewer(
@@ -54,6 +56,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     () => learnerProfile(opened.all(), Date.now()),
     settings,
     usage,
+    consent,
   );
   const status = new StatusBar(context, settings, usage);
   const autopilot = new Autopilot(context, reviewer, findings, status, log, settings);
@@ -83,6 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
       ),
     ),
     vscode.commands.registerCommand('adviser.setApiKey', () => setApiKey(context)),
+    vscode.commands.registerCommand('adviser.revokeConsent', () => consent.revoke()),
     vscode.commands.registerCommand(MENU_COMMAND, () =>
       showMenu(context, autopilot, log, settings),
     ),

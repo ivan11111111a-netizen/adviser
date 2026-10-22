@@ -36,6 +36,11 @@
         "category": "Adviser"
       },
       {
+        "command": "adviser.revokeConsent",
+        "title": "Отозвать разрешение на отправку кода",
+        "category": "Adviser"
+      },
+      {
         "command": "adviser.showMenu",
         "title": "Режим и «Не беспокоить»",
         "category": "Adviser"

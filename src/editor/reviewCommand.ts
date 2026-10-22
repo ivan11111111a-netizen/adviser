@@ -29,7 +29,7 @@ export async function reviewFunction(
     new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length),
   );
 
-  const outcome = await status.busy(reviewer.review(doc, range, 'команда'));
+  const outcome = await status.busy(reviewer.review(doc, range, 'команда', undefined, true));
   switch (outcome.kind) {
     case 'reviewed': {
       const { issues } = outcome.review;

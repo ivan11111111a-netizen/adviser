@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { Destination } from '../core/consent';
 import type { Provider } from '../core/engine';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../providers/claudeCode';
 import { mockProvider } from '../providers/mock';
@@ -10,6 +11,8 @@ export interface ConfiguredProvider {
   provider: Provider;
   /** Провайдер, адрес и модель: часть ключа кэша. */
   id: string;
+  /** Куда уходит код — для окна согласия. У провайдеров разработки его нет. */
+  destination?: Destination;
 }
 
 /**
@@ -33,6 +36,7 @@ export async function createProvider(
       const baseURL = config.get<string>('baseUrl', 'https://openrouter.ai/api/v1');
       return {
         id: `${kind} ${baseURL} ${model}`,
+        destination: { baseUrl: baseURL, model },
         provider: createOpenAICompatibleProvider({
           baseURL,
           apiKey: await context.secrets.get(API_KEY_SECRET),

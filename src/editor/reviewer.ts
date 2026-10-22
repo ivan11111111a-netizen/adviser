@@ -21,6 +21,7 @@ import { collectContext, readRules } from './context';
 import type { Findings } from './findings';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
 import type { UsageTracker } from './usage';
+import type { Consent } from './consent';
 
 export type Outcome =
   | { kind: 'reviewed'; review: Review; cached: boolean; presentation: Presentation }
@@ -41,6 +42,7 @@ export class Reviewer {
     private readonly profile: () => PromptInput['profile'],
     private readonly settings: ProjectSettings,
     private readonly usage: UsageTracker,
+    private readonly consent: Consent,
   ) {}
 
   async review(
@@ -48,6 +50,8 @@ export class Reviewer {
     range: LineRange,
     source: string,
     signal?: AbortSignal,
+    /** Человек сам запустил разбор: можно спросить согласие в окне. Автопилот не спрашивает. */
+    interactive = false,
   ): Promise<Outcome> {
     // Код берём до первого await: правка после этого отменит разбор через signal.
     const code = doc.getText(
@@ -114,6 +118,17 @@ export class Reviewer {
     const over = this.usage.exceeded();
     if (over) {
       return { kind: 'refused', message: `${over}, разборы на паузе (настройки adviser.budget)` };
+    }
+    if (this.consent.needed(configured.destination)) {
+      if (!interactive) {
+        return {
+          kind: 'refused',
+          message: 'нужно разрешение на отправку кода: выполни «Adviser: Разобрать эту функцию»',
+        };
+      }
+      if (!(await this.consent.ask(configured.destination))) {
+        return { kind: 'refused', message: 'отправка кода не разрешена' };
+      }
     }
     this.log.info(`${source}: разбор ${where}, ${version}, уровень ${level}, язык ${language}`);
     const spent = { inputTokens: 0, outputTokens: 0 };
