@@ -10,12 +10,19 @@ import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
 import { runReview, runStructured, type Usage } from '../core/engine';
 import { hintLeak } from '../core/hintGuard';
-import { normalizePatternIds, patternsFor } from '../core/patterns';
+import {
+  buildExercisePrompt,
+  EXERCISE_PROMPT_VERSION,
+  exerciseSchema,
+  type Exercise,
+} from '../core/exercise';
+import { normalizePatternIds, patternsFor, type Pattern } from '../core/patterns';
 import {
   buildPrompt,
   parseTemplate,
   PROMPT_VERSION,
   resolveLanguage,
+  type AdviceLanguage,
   type PromptInput,
 } from '../core/promptBuilder';
 import type { Issue, Review } from '../core/reviewSchema';
@@ -34,6 +41,11 @@ import type { Findings } from './findings';
 import { CONFIG_PATH, type ProjectSettings } from './settings';
 import type { UsageTracker } from './usage';
 import type { Consent } from './consent';
+
+export type ExerciseOutcome =
+  | { kind: 'generated'; exercise: Exercise; language: AdviceLanguage }
+  | { kind: 'refused'; message: string }
+  | { kind: 'failed'; error: string; invalid: boolean };
 
 export type CheckOutcome =
   | { kind: 'checked'; understood: boolean; feedback: string }
@@ -298,6 +310,56 @@ export class Reviewer {
     }
     this.log.info(`${issue.patternId}: ${understood ? 'объяснил верно' : 'пока не понял'}`);
     return { kind: 'checked', understood, feedback: applyCourseText(feedback, settings.course) };
+  }
+
+  /**
+   * Упражнение на тип ошибки (src/core/exercise.ts). Кода учащегося в запросе нет, поэтому
+   * согласия на отправку кода не нужно; бюджет — как у разбора.
+   */
+  async exercise(
+    pattern: Pattern,
+    languageId: string,
+    uri: vscode.Uri | undefined,
+  ): Promise<ExerciseOutcome> {
+    try {
+      const main = await createProvider(this.context);
+      if (typeof main === 'string') {
+        return { kind: 'refused', message: main };
+      }
+      const budget = this.withinBudget(main);
+      if (typeof budget === 'string') {
+        return { kind: 'refused', message: budget };
+      }
+      const settings = this.settings.get(uri);
+      const language = resolveLanguage(settings.language, vscode.env.language);
+      const template = parseTemplate(
+        await readBundled(this.context, 'prompts', `${EXERCISE_PROMPT_VERSION}.md`),
+      );
+      const request = buildExercisePrompt(template, {
+        pattern,
+        languageId,
+        level: settings.level,
+        language,
+      });
+      this.log.info(`упражнение: ${pattern.id}, ${languageId}, ${EXERCISE_PROMPT_VERSION}`);
+      const result = await runStructured(
+        exerciseSchema,
+        budget.configured.provider,
+        request,
+        undefined,
+        budget.spend,
+      );
+      if (!result.ok) {
+        this.log.warn(result.error);
+        return { kind: 'failed', error: result.error, invalid: result.invalid };
+      }
+      return { kind: 'generated', exercise: result.data, language };
+    } catch (e) {
+      this.log.error(
+        `упражнение не получилось: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
+      );
+      return { kind: 'failed', error: String(e), invalid: false };
+    }
   }
 
   /** Можно ли отправлять этот файл. Строка — почему нельзя. */

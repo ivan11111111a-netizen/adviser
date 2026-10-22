@@ -1,5 +1,6 @@
 import type { ModelRequest, Provider } from '../core/engine';
 import type { Review } from '../core/reviewSchema';
+import { exerciseJsonSchema } from '../core/exercise';
 import { checkJsonSchema } from '../core/selfCheck';
 
 /** Заготовленный ответ: интерфейс и тесты проверяются без сети и токенов. */
@@ -46,6 +47,12 @@ export const MOCK_RIGHT = 'mock: right';
 export const mockProvider: Provider = {
   complete: async (request) => {
     lastMockRequest = request;
+    if (request.jsonSchema === exerciseJsonSchema) {
+      return {
+        task: 'Mock: функция возвращает первый товар из списка.',
+        code: 'function firstItem(items) {\n  return items[0];\n}',
+      };
+    }
     if (request.jsonSchema === checkJsonSchema) {
       const understood = request.prompt.includes(MOCK_RIGHT);
       return {

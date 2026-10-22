@@ -205,6 +205,10 @@ export async function showMenu(
         label: '$(graph) Отчёт за неделю',
         run: () => vscode.commands.executeCommand('adviser.weeklyReport'),
       },
+      {
+        label: '$(mortar-board) Упражнение на частую ошибку',
+        run: () => vscode.commands.executeCommand('adviser.exercise'),
+      },
       separator,
       ...modes,
       separator,

@@ -1,0 +1,20 @@
+{
+  "cases": [
+    { "pattern": "off-by-one", "languageId": "javascript" },
+    { "pattern": "empty-collection", "languageId": "javascript" },
+    { "pattern": "loose-equality", "languageId": "javascript" },
+    { "pattern": "sort-without-comparator", "languageId": "javascript" },
+    { "pattern": "reduce-without-initial", "languageId": "javascript" },
+    { "pattern": "premature-return", "languageId": "javascript" },
+    { "pattern": "mutable-default-argument", "languageId": "python" },
+    { "pattern": "integer-division", "languageId": "python" },
+    { "pattern": "modify-while-iterating", "languageId": "python" },
+    { "pattern": "missing-return", "languageId": "python" },
+    { "pattern": "sizeof-pointer", "languageId": "c" },
+    { "pattern": "uninitialized-variable", "languageId": "c" },
+    { "pattern": "reference-equality", "languageId": "c" },
+    { "pattern": "scanner-leftover-newline", "languageId": "java" },
+    { "pattern": "missing-break", "languageId": "java" },
+    { "pattern": "integer-division", "languageId": "java" }
+  ]
+}

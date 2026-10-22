@@ -111,6 +111,12 @@
         "title": "Отчёт за неделю",
         "category": "Adviser",
         "icon": "$(graph)"
+      },
+      {
+        "command": "adviser.exercise",
+        "title": "Упражнение на частую ошибку",
+        "category": "Adviser",
+        "icon": "$(mortar-board)"
       }
     ],
     "menus": {
@@ -122,9 +128,14 @@
       ],
       "view/title": [
         {
+          "command": "adviser.exercise",
+          "when": "view == adviser.journal",
+          "group": "navigation@1"
+        },
+        {
           "command": "adviser.weeklyReport",
           "when": "view == adviser.journal",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "adviser.exportJournal",

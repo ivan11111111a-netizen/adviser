@@ -24,6 +24,7 @@ import {
   type CheckArgs,
   type RevealArgs,
 } from './editor/hover';
+import { startExercise, type ExerciseArgs } from './editor/exercise';
 import { checkYourself } from './editor/selfCheck';
 import { readPatterns } from './editor/bundled';
 import { clearJournal, exportJournal, Journal } from './editor/journal';
@@ -100,6 +101,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     ),
     vscode.commands.registerCommand('adviser.setApiKey', () => setApiKey(context)),
     vscode.commands.registerCommand('adviser.revokeConsent', () => consent.revoke()),
+    vscode.commands.registerCommand('adviser.exercise', (args?: ExerciseArgs) =>
+      startExercise(reviewer, findings, opened, patterns, status, args),
+    ),
     vscode.commands.registerCommand('adviser.exportJournal', () => exportJournal(opened)),
     vscode.commands.registerCommand('adviser.clearJournal', () => clearJournal(opened)),
     vscode.commands.registerCommand('adviser.openWalkthrough', () => openWalkthrough(context)),

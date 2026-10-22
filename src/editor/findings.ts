@@ -47,6 +47,8 @@ const SEVERITY: Record<Severity, vscode.DiagnosticSeverity> = {
 export class Findings implements vscode.Disposable {
   private readonly diagnostics = vscode.languages.createDiagnosticCollection('adviser');
   private readonly byUri = new Map<string, Finding[]>();
+  /** Файлы упражнений: ошибки в них заложены нарочно, в журнал и профиль они не идут. */
+  private readonly exercises = new Set<string>();
   private readonly subscription = vscode.workspace.onDidChangeTextDocument((e) => this.edited(e));
 
   constructor(private readonly journal: Journal) {}
@@ -87,7 +89,7 @@ export class Findings implements vscode.Disposable {
         step,
         hidden: answered || undefined,
       };
-      if (!before) {
+      if (!before && !this.exercises.has(uri.toString())) {
         this.journal.record({
           id: finding.id,
           patternId: f.issue.patternId,
@@ -108,6 +110,10 @@ export class Findings implements vscode.Disposable {
     }
     this.byUri.set(uri.toString(), [...all.filter(outside), ...added]);
     this.show(uri);
+  }
+
+  markExercise(uri: vscode.Uri) {
+    this.exercises.add(uri.toString());
   }
 
   /** Замечания, текст которых VS Code покажет в hover в этой точке, в том же порядке, что и он. */

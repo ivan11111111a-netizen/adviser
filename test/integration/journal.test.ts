@@ -112,6 +112,22 @@ suite('Журнал ошибок', () => {
     assert.match(api.lastMockRequest()!.prompt, /<answer>\nmock: right\n<\/answer>/);
   });
 
+  test('упражнение: новый файл с функцией, разбор в нём в журнал не идёт', async () => {
+    await vscode.commands.executeCommand('adviser.exercise', { patternId: 'empty-collection' });
+    const editor = vscode.window.activeTextEditor!;
+    const text = editor.document.getText();
+    assert.strictEqual(editor.document.uri.scheme, 'untitled');
+    assert.match(text, /^\/\/ (Упражнение Adviser|Adviser exercise): /);
+    assert.match(text, /\n\nfunction firstItem\(items\) \{\n {2}return items\[0\];\n\}\n$/);
+
+    const before = api.journal.all().length;
+    const line = editor.document.lineCount - 3;
+    editor.selection = new vscode.Selection(line, 2, line, 2);
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    assert.ok(vscode.languages.getDiagnostics(editor.document.uri).length > 0);
+    assert.strictEqual(api.journal.all().length, before);
+  });
+
   test('правка строк замечания прячет его до нового разбора, а разбор продолжает тот же случай', async () => {
     const { doc, editor } = await reviewNew();
     assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);

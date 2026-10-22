@@ -14,10 +14,18 @@ import {
 } from '../src/core/promptBuilder';
 import type { Issue } from '../src/core/reviewSchema';
 import { buildCheckPrompt, CHECK_PROMPT_VERSION, checkSchema } from '../src/core/selfCheck';
+import { buildExercisePrompt, EXERCISE_PROMPT_VERSION, exerciseSchema } from '../src/core/exercise';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../src/providers/claudeCode';
 import { mockProvider } from '../src/providers/mock';
 import { createOpenAICompatibleProvider } from '../src/providers/openaiCompatible';
 import { languageIdOf, parseCases, type EvalCase } from './cases';
+import {
+  extraIssues,
+  parseExerciseCases,
+  renderExerciseReport,
+  summarizeExercises,
+  type ExerciseRecord,
+} from './exercise';
 import { parseCheckCases, renderCheckReport, summarizeChecks, type CheckRecord } from './check';
 import {
   buildJudgeRequest,
@@ -37,10 +45,12 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
-  --suite cases|socratic|check
+  --suite cases|socratic|check|exercise
                         наш набор evals/cases.json, настоящие ошибки новичков из Socratic Debugging
                         Benchmark (скачивается в evals/runs/, засчитывается место ошибки) или
                         «Проверь меня» на evals/check-cases.json (понял ли учащийся ошибку)
+  --suite exercise      упражнения на evals/exercise-cases.json: модель пишет функцию с ошибкой
+                        заданного типа, наставник (--prompt) её разбирает
   --prompt <версия>     промпт из prompts/, по умолчанию тот, что в расширении (${PROMPT_VERSION};
                         для --suite check — ${CHECK_PROMPT_VERSION})
   --profile <id,id,…>   профиль учащегося: эти типы ошибок как частые (по 3 раза), если в промпте
@@ -94,6 +104,10 @@ if (args.help) {
 const concurrency = Number(args.concurrency) || 3;
 if (args.suite === 'check') {
   await checks();
+  process.exit(0);
+}
+if (args.suite === 'exercise') {
+  await exercises();
   process.exit(0);
 }
 const suite =
@@ -298,6 +312,92 @@ async function checks() {
     `\nоценка верна ${s.correct} из ${s.total - s.failed} · «верно» на неверный ${s.falseAccepts} · ` +
       `«не то» на верный ${s.falseRejects} · выдаёт решение ${s.leaks} из ${s.rejected} · ` +
       `не ответила ${s.failed} · медиана ${s.medianSeconds.toFixed(1)} с`,
+  );
+  console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
+}
+
+/** --suite exercise: упражнения на evals/exercise-cases.json (evals/exercise.ts). */
+async function exercises() {
+  const language = ADVICE_LANGUAGES.find((l) => l === args.language);
+  if (!language) {
+    throw new Error(`--language: ${ADVICE_LANGUAGES.join(' или ')}`);
+  }
+  const provider = createProvider(args.provider!, args.model!);
+  const exerciseTemplate = parseTemplate(read('prompts', `${EXERCISE_PROMPT_VERSION}.md`));
+  // --prompt — чем разбирать упражнения, как в расширении.
+  const reviewTemplate = parseTemplate(read('prompts', `${args.prompt}.md`));
+  const patterns = parsePatterns(JSON.parse(read('patterns', 'patterns.json')));
+  const items = parseExerciseCases(JSON.parse(read('evals', 'exercise-cases.json'))).filter(
+    (c) => !args.only || `${c.languageId}/${c.pattern}`.includes(args.only),
+  );
+  const id = `${stamp(new Date())}-exercise-${args.provider}-${args.model}-${EXERCISE_PROMPT_VERSION}`;
+  console.log(`${id}: ${items.length} упражнений`);
+  const records: ExerciseRecord[] = [];
+  await pool(items, concurrency, async (item) => {
+    const record: ExerciseRecord = { ...item };
+    records.push(record);
+    const pattern = patterns.find((p) => p.id === item.pattern);
+    if (!pattern) {
+      record.error = `нет типа ${item.pattern} в patterns.json`;
+      return;
+    }
+    const generated = await runStructured(
+      exerciseSchema,
+      provider,
+      buildExercisePrompt(exerciseTemplate, {
+        pattern,
+        languageId: item.languageId,
+        level: 'beginner',
+        language,
+      }),
+    );
+    if (!generated.ok) {
+      record.error = generated.error;
+      console.log(`! ${item.pattern} ${item.languageId}: ${generated.error}`);
+      return;
+    }
+    record.task = generated.data.task;
+    record.code = generated.data.code;
+    const reviewed = await runReview(
+      provider,
+      buildPrompt(reviewTemplate, {
+        languageId: item.languageId,
+        code: generated.data.code,
+        level: 'beginner',
+        language,
+        patterns: patternsFor(patterns, item.languageId),
+      }),
+    );
+    if (!reviewed.ok) {
+      record.error = reviewed.error;
+      return;
+    }
+    record.issues = normalizePatternIds(reviewed.review, patterns).review.issues.map(
+      ({ patternId, severity, hint }) => ({ patternId, severity, hint }),
+    );
+    const found = record.issues.some((i) => i.patternId === item.pattern);
+    const extra = extraIssues(record).map((i) => i.patternId);
+    console.log(
+      `${found ? '+' : '-'} ${item.pattern} ${item.languageId}${extra.length ? `, ещё: ${extra.join(', ')}` : ''}`,
+    );
+  });
+  records.sort(
+    (a, b) => a.languageId.localeCompare(b.languageId) || a.pattern.localeCompare(b.pattern),
+  );
+  mkdirSync(RUNS, { recursive: true });
+  writeFileSync(path.join(RUNS, `${id}.json`), JSON.stringify(records, null, 2));
+  const reportFile = path.join(RUNS, `${id}.md`);
+  const meta = {
+    id,
+    date: new Date().toLocaleString('ru-RU'),
+    model: args.model!,
+    prompt: EXERCISE_PROMPT_VERSION,
+    reviewPrompt: args.prompt!,
+  };
+  writeFileSync(reportFile, renderExerciseReport(meta, records));
+  const s = summarizeExercises(records);
+  console.log(
+    `\nнужная ошибка нашлась ${s.found} из ${s.total - s.failed} · с лишними ошибками ${s.withExtra} · не получилось ${s.failed}`,
   );
   console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
 }
