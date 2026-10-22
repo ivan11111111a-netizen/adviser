@@ -185,6 +185,11 @@ export async function showMenu(
       separator,
       ...quiet,
       { label: '$(output) Лог', description: 'Output → Adviser', run: () => log.show() },
+      {
+        label: '$(rocket) Начало работы',
+        description: 'модель, уровень, пробный разбор',
+        run: () => vscode.commands.executeCommand('adviser.openWalkthrough'),
+      },
     ],
     { title: 'Adviser' },
   );
