@@ -22,3 +22,9 @@ jobs:
       - run: npm run check-types
       - run: npm run test:unit
       - run: xvfb-run -a npm run test:integration
+      # .vsix собирается на каждом прогоне: так видно, что пакет не сломан.
+      - run: npm run package:vsix
+      - uses: actions/upload-artifact@v7
+        with:
+          name: adviser-vsix
+          path: adviser-*.vsix

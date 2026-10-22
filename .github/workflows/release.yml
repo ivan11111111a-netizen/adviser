@@ -1,0 +1,41 @@
+name: Release
+
+# Выпуск на GitHub Releases по тегу vX.Y.Z (план, раздел 13: v0.5 раздаём .vsix так).
+# Marketplace и Open VSX — позже: нужны имя и издатель (vsce publish --oidc, ovsx).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - name: Тег совпадает с версией в package.json
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          test "$(node -p "require('./package.json').version")" = "$version"
+      - run: npm run package:vsix
+      - name: Выпуск с заметками из CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Раздел «## X.Y.Z …» до следующего «## ».
+          awk -v v="## $version" 'index($0, v) == 1 { p = 1; next } /^## / { p = 0 } p' CHANGELOG.md > notes.md
+          minor="$(echo "$version" | cut -d. -f2)"
+          # Нечётная минорная цифра — предварительный выпуск (AGENTS.md).
+          prerelease=""
+          if [ $((minor % 2)) -eq 1 ]; then prerelease="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" adviser-*.vsix \
+            --title "Adviser $version" --notes-file notes.md $prerelease
