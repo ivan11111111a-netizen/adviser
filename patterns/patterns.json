@@ -248,8 +248,83 @@
     },
     {
       "id": "integer-division",
-      "title": { "ru": "перепутаны / и //", "en": "/ and // mixed up" },
-      "languages": ["py"]
+      "title": {
+        "ru": "деление целых отбрасывает дробную часть или перепутаны / и //",
+        "en": "integer division drops the fraction, or / and // mixed up"
+      },
+      "languages": ["py", "c", "java"]
+    },
+    {
+      "id": "reference-equality",
+      "title": {
+        "ru": "строки или объекты сравниваются через == вместо equals или strcmp",
+        "en": "strings or objects compared with == instead of equals or strcmp"
+      },
+      "languages": ["c", "java"]
+    },
+    {
+      "id": "missing-break",
+      "title": {
+        "ru": "в switch пропущен break: выполнение проваливается в следующий case",
+        "en": "missing break in switch: execution falls through to the next case"
+      },
+      "languages": ["js", "c", "java"]
+    },
+    {
+      "id": "integer-overflow",
+      "title": {
+        "ru": "результат не помещается в тип int или long",
+        "en": "result overflows int or long"
+      },
+      "languages": ["c", "java"]
+    },
+    {
+      "id": "uninitialized-variable",
+      "title": {
+        "ru": "переменная читается до того, как ей присвоили значение",
+        "en": "variable read before it is assigned"
+      },
+      "languages": ["c"]
+    },
+    {
+      "id": "unsafe-string-function",
+      "title": {
+        "ru": "gets, strcpy, scanf(\"%s\") без ограничения длины: можно выйти за буфер",
+        "en": "gets, strcpy or scanf(\"%s\") without a length limit can overflow the buffer"
+      },
+      "languages": ["c"]
+    },
+    {
+      "id": "sizeof-pointer",
+      "title": {
+        "ru": "sizeof от указателя вместо размера массива",
+        "en": "sizeof of a pointer instead of the array size"
+      },
+      "languages": ["c"]
+    },
+    {
+      "id": "memory-leak",
+      "title": {
+        "ru": "выделенная память не освобождается",
+        "en": "allocated memory is never freed"
+      },
+      "languages": ["c"]
+    },
+    {
+      "id": "dangling-pointer",
+      "title": {
+        "ru": "указатель на освобождённую память или на локальную переменную функции",
+        "en": "pointer to freed memory or to a function's local variable"
+      },
+      "languages": ["c"]
+    },
+    {
+      "id": "scanner-leftover-newline",
+      "title": {
+        "ru": "nextLine() после nextInt() читает пустую строку",
+        "en": "nextLine() after nextInt() reads an empty line"
+      },
+      "languages": ["java"]
     },
     {
       "id": "unclear-name",
@@ -304,7 +379,7 @@
         "ru": "строка собирается сложением в цикле",
         "en": "string built with + in a loop"
       },
-      "languages": ["py"]
+      "languages": ["py", "java"]
     },
     {
       "id": "injection",

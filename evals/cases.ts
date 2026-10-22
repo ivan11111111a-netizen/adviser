@@ -29,6 +29,9 @@ const LANGUAGE_IDS: Record<string, string> = {
   '.js': 'javascript',
   '.ts': 'typescript',
   '.py': 'python',
+  '.c': 'c',
+  '.cpp': 'cpp',
+  '.java': 'java',
 };
 
 /** languageId VS Code по расширению файла — так же его видит расширение. */

@@ -15,10 +15,14 @@ const pattern = (id: string, languages?: Pattern['languages']): Pattern => ({
   languages,
 });
 
-test('patterns/patterns.json проходит схему, типов 30–50', () => {
+test('patterns/patterns.json проходит схему, у каждого языка типов 30–50', () => {
   const patterns = parsePatterns(JSON.parse(readFileSync('patterns/patterns.json', 'utf8')));
-  expect(patterns.length).toBeGreaterThanOrEqual(30);
-  expect(patterns.length).toBeLessThanOrEqual(50);
+  // Столько уходит в промпт: весь список длиннее, но у каждого языка он свой.
+  for (const languageId of ['javascript', 'typescript', 'python', 'c', 'cpp', 'java']) {
+    const count = patternsFor(patterns, languageId).length;
+    expect(count, languageId).toBeGreaterThanOrEqual(30);
+    expect(count, languageId).toBeLessThanOrEqual(50);
+  }
   // Пример из плана (6.4) — id, на который уже ссылаются документы.
   expect(patterns.map((p) => p.id)).toContain('reduce-without-initial');
 });
@@ -33,13 +37,19 @@ describe('схема файла', () => {
   });
 
   test('неизвестное семейство языков и пустое название не проходят', () => {
-    expect(parse([{ ...pattern('a'), languages: ['java'] }])).toThrow();
+    expect(parse([{ ...pattern('a'), languages: ['go'] }])).toThrow();
     expect(parse([{ ...pattern('a'), title: { ru: '', en: 'x' } }])).toThrow();
   });
 });
 
 describe('фильтр по языку файла', () => {
-  const all = [pattern('common'), pattern('js-only', ['js']), pattern('ts-only', ['ts'])];
+  const all = [
+    pattern('common'),
+    pattern('js-only', ['js']),
+    pattern('ts-only', ['ts']),
+    pattern('c-only', ['c']),
+    pattern('c-and-java', ['c', 'java']),
+  ];
   const ids = (languageId: string) => patternsFor(all, languageId).map((p) => p.id);
 
   test('js покрывает и TypeScript, ts — только TypeScript', () => {
@@ -47,9 +57,15 @@ describe('фильтр по языку файла', () => {
     expect(ids('typescriptreact')).toEqual(['common', 'js-only', 'ts-only']);
   });
 
+  test('c покрывает и C++, java — только Java', () => {
+    expect(ids('c')).toEqual(['common', 'c-only', 'c-and-java']);
+    expect(ids('cpp')).toEqual(['common', 'c-only', 'c-and-java']);
+    expect(ids('java')).toEqual(['common', 'c-and-java']);
+  });
+
   test('для прочих языков — только общие типы', () => {
     expect(ids('python')).toEqual(['common']);
-    expect(ids('java')).toEqual(['common']);
+    expect(ids('go')).toEqual(['common']);
   });
 });
 

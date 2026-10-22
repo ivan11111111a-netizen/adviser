@@ -62,6 +62,25 @@ describe('documentSkipReason', () => {
     expect(documentSkipReason({ ...ok, path: 'C:\\study\\main.py', languageId: 'python' })).toBe(
       undefined,
     );
+    for (const [path, languageId] of [
+      ['/study/lab1.c', 'c'],
+      ['/study/vector.cpp', 'cpp'],
+      ['/study/src/Main.java', 'java'],
+    ]) {
+      expect(documentSkipReason({ ...ok, path, languageId })).toBeUndefined();
+    }
+  });
+
+  test('сборка Maven, Gradle и CLion — не учебный код', () => {
+    for (const path of [
+      '/p/target/classes/Main.java',
+      'C:\\p\\.gradle\\x.java',
+      '/p/cmake-build-debug/main.c',
+    ]) {
+      expect(documentSkipReason({ ...ok, path, languageId: 'java' })).toBe(
+        'сборка или зависимости',
+      );
+    }
   });
 
   test('не смотрит .env, чужие языки, сборку, зависимости, большие и минифицированные файлы', () => {

@@ -194,6 +194,52 @@
     { "file": "py/clean-word-lengths.py", "expect": [] },
     { "file": "py/clean-read-lines.py", "expect": [] },
     { "file": "py/clean-is-palindrome.py", "expect": [] },
-    { "file": "py/clean-average.py", "expect": [] }
+    { "file": "py/clean-average.py", "expect": [] },
+    {
+      "file": "c/ask-yes.c",
+      "expect": [{ "patterns": ["reference-equality"], "lines": [2, 2] }],
+      "allow": ["redundant-boolean", "missing-null-check"]
+    },
+    {
+      "file": "c/array-sum.c",
+      "expect": [{ "patterns": ["sizeof-pointer"], "lines": [2, 2] }],
+      "allow": ["missing-null-check"]
+    },
+    {
+      "file": "c/average.c",
+      "expect": [{ "patterns": ["integer-division"], "lines": [6, 6] }],
+      "allow": ["division-by-zero", "empty-collection", "missing-null-check"]
+    },
+    {
+      "file": "c/greet.c",
+      "expect": [{ "patterns": ["unsafe-string-function"], "lines": [4, 4] }],
+      "allow": ["missing-input-validation", "missing-error-handling"]
+    },
+    {
+      "file": "c/count-even.c",
+      "expect": [{ "patterns": ["uninitialized-variable"], "lines": [2, 5] }],
+      "allow": ["missing-null-check"]
+    },
+    { "file": "c/clean-max.c", "expect": [] },
+    {
+      "file": "java/IsAdmin.java",
+      "expect": [{ "patterns": ["reference-equality"], "lines": [3, 3] }],
+      "allow": ["redundant-boolean", "missing-null-check"]
+    },
+    {
+      "file": "java/ReadUser.java",
+      "expect": [{ "patterns": ["scanner-leftover-newline"], "lines": [6, 8] }],
+      "allow": ["missing-input-validation", "missing-error-handling"]
+    },
+    {
+      "file": "java/DayName.java",
+      "expect": [{ "patterns": ["missing-break"], "lines": [5, 9] }]
+    },
+    {
+      "file": "java/Average.java",
+      "expect": [{ "patterns": ["integer-division"], "lines": [7, 7] }],
+      "allow": ["division-by-zero", "empty-collection", "missing-null-check"]
+    },
+    { "file": "java/CleanCountWords.java", "expect": [] }
   ]
 }

@@ -9,9 +9,10 @@ const known = new Set([
   OTHER_PATTERN,
 ]);
 
-test('в наборе 30–50 случаев, из них чистых не меньше 8', () => {
+// До 9.10 было 30–50 (этап 3 плана); C и Java добавили ещё 11.
+test('в наборе 30–60 случаев, из них чистых не меньше 8', () => {
   expect(cases.length).toBeGreaterThanOrEqual(30);
-  expect(cases.length).toBeLessThanOrEqual(50);
+  expect(cases.length).toBeLessThanOrEqual(60);
   expect(cases.filter((c) => c.expect.length === 0).length).toBeGreaterThanOrEqual(8);
   expect(new Set(cases.map((c) => c.file)).size).toBe(cases.length);
 });

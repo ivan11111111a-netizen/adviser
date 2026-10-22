@@ -10,6 +10,9 @@ const FAMILIES = {
   js: ['javascript', 'typescript', 'javascriptreact', 'typescriptreact'],
   ts: ['typescript', 'typescriptreact'],
   py: ['python'],
+  // Ошибки C почти все есть и в C++: указатели, память, строки как массивы символов.
+  c: ['c', 'cpp'],
+  java: ['java'],
 } as const;
 
 const patternSchema = z.object({
@@ -43,6 +46,14 @@ export function patternsFor(patterns: Pattern[], languageId: string): Pattern[] 
       p.languages.some((f) => (FAMILIES[f] as readonly string[]).includes(languageId)),
   );
 }
+
+/** Бывает ли этот тип ошибки в языке файла. */
+export const fitsLanguage = (pattern: Pattern, languageId: string) =>
+  patternsFor([pattern], languageId).length > 0;
+
+/** Язык, в котором тип ошибки точно бывает: первый из его семейств, у общих — JavaScript. */
+export const primaryLanguage = (pattern: Pattern): string =>
+  pattern.languages ? FAMILIES[pattern.languages[0]][0] : 'javascript';
 
 /** Список для промпта: по строке на тип, названия на языке советов. */
 export function renderPatterns(patterns: Pattern[], language: AdviceLanguage): string {

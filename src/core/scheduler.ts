@@ -77,18 +77,23 @@ export function retryDelay(failures: number): number {
   return Math.min(15 * 60_000, 60_000 * 2 ** Math.max(0, failures - 1));
 }
 
+/** C, C++ и Java — если стоит расширение языка: без него нет символов (src/core/languageSupport.ts). */
 export const AUTOPILOT_LANGUAGES = [
   'javascript',
   'javascriptreact',
   'typescript',
   'typescriptreact',
   'python',
+  'c',
+  'cpp',
+  'java',
 ];
 
 export const MAX_LINES = 3000;
 const MINIFIED_LINE = 500;
+// target и .gradle — сборка Maven и Gradle, cmake-build-* — CLion.
 const GENERATED_DIRS =
-  /(^|[\\/])(node_modules|dist|out|build|\.git|\.venv|venv|site-packages)[\\/]/;
+  /(^|[\\/])(node_modules|dist|out|build|target|\.gradle|cmake-build-[^\\/]*|\.git|\.venv|venv|site-packages)[\\/]/;
 
 export interface DocumentInfo {
   path: string;
