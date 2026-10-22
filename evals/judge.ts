@@ -1,3 +1,4 @@
+import { hasHint } from '../src/core/disclosure';
 // Судья намёков (этап 3): вторая модель проверяет, что hint наводит на проблему, но не выдаёт ответ.
 import { z } from 'zod';
 import { InvalidResponseError, type ModelRequest, type Provider } from '../src/core/engine';
@@ -23,9 +24,9 @@ const responseJsonSchema = z.toJSONSchema(responseSchema, { target: 'draft-7' })
   unknown
 >;
 
-/** Номера замечаний, у которых учащийся видит намёк: у critical его нет, сразу объяснение. */
+/** Номера замечаний, у которых учащийся видит намёк (hasHint): у уязвимостей его нет. */
 export function judgedIndexes(issues: Issue[]): number[] {
-  return issues.flatMap((issue, i) => (issue.severity === 'critical' ? [] : [i]));
+  return issues.flatMap((issue, i) => (hasHint(issue) ? [i] : []));
 }
 
 /** Код и намёки с тем, что за ними стоит: без объяснения и решения судье не понять, выдан ли ответ. */

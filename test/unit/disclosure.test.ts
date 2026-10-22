@@ -23,9 +23,14 @@ describe('первая ступень', () => {
     expect(diagnosticText(issue())).toBe(issue().hint);
   });
 
-  test('critical пропускает намёк: в подчёркивании сразу объяснение', () => {
-    expect(firstStep(issue({ severity: 'critical' }))).toBe(2);
-    expect(diagnosticText(issue({ severity: 'critical' }))).toBe(issue().explanation);
+  test('уязвимость пропускает намёк: в подчёркивании сразу объяснение', () => {
+    expect(firstStep(issue({ category: 'security' }))).toBe(2);
+    expect(diagnosticText(issue({ category: 'security' }))).toBe(issue().explanation);
+  });
+
+  test('critical — с намёком: неверный результат и есть учебный момент', () => {
+    expect(firstStep(issue({ severity: 'critical' }))).toBe(1);
+    expect(diagnosticText(issue({ severity: 'critical' }))).toBe(issue().hint);
   });
 });
 
@@ -40,7 +45,7 @@ test('ревьюер: всё сразу — объяснение в подчёр
   });
 });
 
-test('пустой намёк (убрал фильтр утечек) — как у critical: сразу объяснение', () => {
+test('пустой намёк (убрал фильтр утечек) — как у уязвимости: сразу объяснение', () => {
   const noHint = issue({ hint: ' ' });
   expect(firstStep(noHint)).toBe(2);
   expect(diagnosticText(noHint)).toBe(noHint.explanation);
@@ -84,8 +89,8 @@ describe('hover', () => {
     expect(view.actions).toEqual([]);
   });
 
-  test('critical: объяснение уже в подчёркивании, в hover его не повторяем', () => {
-    const view = hoverView(issue({ severity: 'critical' }), 1);
+  test('уязвимость: объяснение уже в подчёркивании, в hover его не повторяем', () => {
+    const view = hoverView(issue({ category: 'security' }), 1);
     expect(view.explanation).toBeUndefined();
     expect(view.readMore).toBe('https://developer.mozilla.org/ru/');
     expect(view.actions).toEqual([3]);

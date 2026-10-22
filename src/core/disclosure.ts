@@ -10,15 +10,20 @@ export type Step = 1 | 2 | 3;
 export type Presentation = 'mentor' | 'reviewer';
 
 /**
- * Есть ли намёк. У critical он неуместен — код сломан. Пустой намёк — его убрал фильтр утечек
- * (hintGuard) или модель его не дала.
+ * Есть ли намёк. У уязвимостей его нет: про них объясняем сразу. Пустой намёк — его убрал фильтр
+ * утечек (hintGuard) или модель его не дала.
+ *
+ * Раньше намёк пропускался у всех critical (6.5 плана). Eval на настоящих ошибках новичков
+ * (Socratic Debugging Benchmark) показал: модель помечает critical 77% таких ошибок — неверный
+ * результат «ломает» код. С прежним правилом учащийся почти не видел намёков, а это главная
+ * механика Adviser.
  */
-export const hasHint = (issue: Pick<Issue, 'severity' | 'hint'>) =>
-  issue.severity !== 'critical' && issue.hint.trim() !== '';
+export const hasHint = (issue: Pick<Issue, 'category' | 'hint'>) =>
+  issue.category !== 'security' && issue.hint.trim() !== '';
 
 /** Какую ступень видно сразу: без намёка — объяснение, ревьюеру — всё сразу. */
 export function firstStep(
-  issue: Pick<Issue, 'severity' | 'hint'>,
+  issue: Pick<Issue, 'category' | 'hint'>,
   presentation: Presentation = 'mentor',
 ): Step {
   if (presentation === 'reviewer') {
@@ -33,8 +38,8 @@ export function reveal(current: Step, requested: Step): Step {
 }
 
 /**
- * Текст подчёркивания и вкладки «Проблемы» — первая ступень: намёк, а для critical и ревьюера
- * объяснение.
+ * Текст подчёркивания и вкладки «Проблемы» — первая ступень: намёк, а для уязвимостей, замечаний
+ * без намёка и ревьюера — объяснение.
  */
 export function diagnosticText(issue: Issue, presentation: Presentation = 'mentor'): string {
   return presentation === 'mentor' && hasHint(issue) ? issue.hint : issue.explanation;

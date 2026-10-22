@@ -10,7 +10,7 @@ const issue = (severity: Issue['severity'], hint: string): Issue => ({
   hint,
 });
 const issues = [
-  issue('critical', 'нет'),
+  { ...issue('critical', 'нет'), category: 'security' as const },
   issue('warning', 'Что вернёт?'),
   issue('suggestion', 'А имя?'),
 ];
@@ -25,7 +25,7 @@ const scripted = (...answers: unknown[]): Provider => ({
   },
 });
 
-test('critical не оценивается: учащийся видит сразу объяснение', () => {
+test('уязвимость не оценивается: учащийся видит сразу объяснение', () => {
   expect(judgedIndexes(issues)).toEqual([1, 2]);
 });
 

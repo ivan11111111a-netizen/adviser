@@ -1,3 +1,4 @@
+import { hasHint } from '../src/core/disclosure';
 import type { Issue } from '../src/core/reviewSchema';
 import type { EvalCase, ExpectedIssue } from './cases';
 import type { Judgment } from './judge';
@@ -84,7 +85,7 @@ export interface Summary {
   /** Чистых случаев без единого замечания из всех чистых. */
   silent: number;
   clean: number;
-  /** Доля намёков с вопросом: hint должен спрашивать, а не утверждать. critical не считаем, там намёка нет. */
+  /** Доля намёков с вопросом: hint должен спрашивать, а не утверждать. Считаем только видимые намёки (hasHint). */
   questionHints: number;
   medianSeconds: number;
   /** Сколько намёков оценил судья; 0 — судьи не было, и две доли ниже ничего не значат. */
@@ -104,7 +105,7 @@ export function summarize(results: CaseResult[]): Summary {
   const expected = answered.reduce((n, r) => n + r.evalCase.expect.length, 0);
   const missed = scores.reduce((n, s) => n + s.missed.length, 0);
   const clean = answered.filter((r) => r.evalCase.expect.length === 0);
-  const hints = answered.flatMap((r) => r.issues!).filter((i) => i.severity !== 'critical');
+  const hints = answered.flatMap((r) => r.issues!).filter(hasHint);
   const seconds = answered.map((r) => r.seconds).sort((a, b) => a - b);
   const judgments = answered.flatMap((r) => r.judgments ?? []);
   return {

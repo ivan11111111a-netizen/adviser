@@ -53,7 +53,11 @@ describe('summarize', () => {
       {
         evalCase: average,
         issues: [
-          issue('reduce-without-initial', 2, 2, { severity: 'critical', hint: 'без вопроса' }),
+          issue('reduce-without-initial', 2, 2, {
+            severity: 'critical',
+            category: 'security',
+            hint: 'без вопроса',
+          }),
           issue('missing-null-check', 1, 1, { hint: 'А если null?' }),
         ],
         seconds: 9,
