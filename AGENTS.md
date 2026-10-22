@@ -65,6 +65,8 @@ CI (`.github/workflows/ci.yml`) гоняет линт, формат, типы, �
 
 ## Публикация (раздел 13 плана)
 
+Пошагово — в `docs/RELEASE.md`.
+
 - Marketplace: `vsce publish --oidc` из GitHub Actions (trusted publishing). Personal access token не заводить: Azure DevOps отключает глобальные PAT 1 декабря 2026.
 - Open VSX: через `ovsx`, токен хранится в секретах CI.
 - Версии: нечётная минорная цифра — pre-release (0.3.x, 0.5.x), чётная — релиз (1.0.x).
