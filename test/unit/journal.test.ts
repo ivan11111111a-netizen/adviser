@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
+  combineJournals,
   daysAgo,
   disagreements,
+  journalSummary,
   journalFileSchema,
   learnerProfile,
   masteredPatterns,
@@ -60,6 +62,36 @@ test('disagreements и ответ при слиянии журналов', () =>
   expect(disagreements(all, 'magic-number')).toBe(1);
   expect(mergeJournals([{ ...a, feedback: undefined }], [a])[0].feedback).toBe('disagree');
   expect(weeklyReport(all, now).disagreed).toBe(1);
+});
+
+describe('combineJournals', () => {
+  test('очистка в одном окне не воскрешается другим, старше года — уходит', () => {
+    const old = entry('off-by-one', 400);
+    const beforeClear = entry('off-by-one', 5);
+    const afterClear = entry('loose-equality', 1);
+    const disk = { version: 1 as const, entries: [old, beforeClear] };
+    const merged = combineJournals(disk, [beforeClear, afterClear], now - 3 * DAY, now);
+    expect(merged.entries).toEqual([afterClear]);
+    expect(merged.clearedAt).toBe(now - 3 * DAY);
+    expect(combineJournals(disk, [], undefined, now).entries).toEqual([beforeClear]);
+  });
+});
+
+test('journalSummary: только типы и числа, без файлов и текстов', () => {
+  const summary = journalSummary([
+    entry('off-by-one', 3, { resolvedAt: now, step: 1 }),
+    entry('off-by-one', 1, { resolvedAt: now, step: 3, feedback: 'disagree' }),
+    entry('loose-equality', 2),
+  ]);
+  expect(summary).toMatchObject({ cases: 3, resolved: 2, selfSolved: 1 });
+  expect(summary.patterns[0]).toMatchObject({
+    patternId: 'off-by-one',
+    count: 2,
+    resolved: 2,
+    selfSolved: 1,
+    disagreed: 1,
+  });
+  expect(JSON.stringify(summary)).not.toMatch(/cart\.js|пустым массивом/);
 });
 
 test('matchByPattern: тот же тип — тот же случай, лишние прежние — исправлены', () => {

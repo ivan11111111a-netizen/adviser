@@ -23,7 +23,7 @@ import {
   type RevealArgs,
 } from './editor/hover';
 import { readPatterns } from './editor/bundled';
-import { Journal } from './editor/journal';
+import { clearJournal, exportJournal, Journal } from './editor/journal';
 import { JournalView, REPORT_COMMAND, showWeeklyReport } from './editor/journalView';
 import { reviewFunction } from './editor/reviewCommand';
 import { Reviewer } from './editor/reviewer';
@@ -96,6 +96,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
     ),
     vscode.commands.registerCommand('adviser.setApiKey', () => setApiKey(context)),
     vscode.commands.registerCommand('adviser.revokeConsent', () => consent.revoke()),
+    vscode.commands.registerCommand('adviser.exportJournal', () => exportJournal(opened)),
+    vscode.commands.registerCommand('adviser.clearJournal', () => clearJournal(opened)),
     vscode.commands.registerCommand('adviser.openWalkthrough', () => openWalkthrough(context)),
     vscode.commands.registerCommand('adviser.setupOpenRouter', () => setupOpenRouter(context)),
     vscode.commands.registerCommand('adviser.setupOllama', () => setupOllama()),

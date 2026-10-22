@@ -38,7 +38,76 @@ export type JournalEntry = z.infer<typeof journalEntrySchema>;
 export const journalFileSchema = z.object({
   version: z.literal(1),
   entries: z.array(journalEntrySchema),
+  /** Журнал очищали: случаи до этого времени не возвращаются, даже если они есть в другом окне. */
+  clearedAt: z.number().optional(),
 });
+
+export type JournalFile = z.infer<typeof journalFileSchema>;
+
+/** Сколько хранить случаи: для отчётов и «освоено» хватает с запасом. */
+export const KEEP_DAYS = 365;
+
+/** Слияние файла и памяти окна с учётом очистки и срока хранения. */
+export function combineJournals(
+  disk: JournalFile,
+  mine: JournalEntry[],
+  mineClearedAt: number | undefined,
+  now: number,
+): JournalFile {
+  const clearedAt = Math.max(disk.clearedAt ?? 0, mineClearedAt ?? 0) || undefined;
+  const from = Math.max(clearedAt ?? 0, now - KEEP_DAYS * DAY);
+  return {
+    version: 1,
+    entries: mergeJournals(disk.entries, mine).filter((e) => e.at >= from),
+    clearedAt,
+  };
+}
+
+export interface PatternSummary {
+  patternId: string;
+  count: number;
+  resolved: number;
+  selfSolved: number;
+  disagreed: number;
+  /** День первого и последнего случая — без времени, файлов и текстов. */
+  first: string;
+  last: string;
+}
+
+/**
+ * Обезличенная сводка журнала: только типы ошибок и числа. Ей можно поделиться с преподавателем
+ * или в пилоте — в ней нет ни путей, ни кода, ни текстов замечаний.
+ */
+export function journalSummary(entries: readonly JournalEntry[]): {
+  cases: number;
+  resolved: number;
+  selfSolved: number;
+  patterns: PatternSummary[];
+} {
+  const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const byPattern = new Map<string, JournalEntry[]>();
+  for (const e of entries) {
+    byPattern.set(e.patternId, [...(byPattern.get(e.patternId) ?? []), e]);
+  }
+  const stats = (list: readonly JournalEntry[]) => ({
+    resolved: list.filter((e) => e.resolvedAt !== undefined).length,
+    selfSolved: list.filter((e) => e.resolvedAt !== undefined && e.step < 3).length,
+  });
+  return {
+    cases: entries.length,
+    ...stats(entries),
+    patterns: [...byPattern]
+      .map(([patternId, list]) => ({
+        patternId,
+        count: list.length,
+        ...stats(list),
+        disagreed: list.filter((e) => e.feedback === 'disagree').length,
+        first: day(Math.min(...list.map((e) => e.at))),
+        last: day(Math.max(...list.map((e) => e.at))),
+      }))
+      .sort((a, b) => b.count - a.count || a.patternId.localeCompare(b.patternId)),
+  };
+}
 
 /**
  * Журналы двух окон VS Code пишут один файл, поэтому перед записью сливаем по id:

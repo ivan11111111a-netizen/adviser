@@ -17,7 +17,12 @@ interface Entry {
 }
 type Node = { kind: string; patternId?: string };
 interface TestApi {
-  journal: { all(): readonly Entry[]; get(id: string): Entry | undefined };
+  journal: {
+    all(): readonly Entry[];
+    get(id: string): Entry | undefined;
+    exportText(kind: 'full' | 'summary'): string;
+    clear(): Promise<void>;
+  };
   journalView: vscode.TreeDataProvider<Node>;
 }
 
@@ -199,5 +204,18 @@ suite('Журнал ошибок', () => {
       tabs.some((label) => label.includes('report.md')),
       `нет вкладки отчёта: ${tabs.join(', ')}`,
     );
+  });
+
+  test('экспорт: сводка без путей и текстов; очистка стирает журнал, новые случаи пишутся', async () => {
+    await reviewNew();
+    const summary = api.journal.exportText('summary');
+    assert.match(summary, /"patternId": "empty-collection"/);
+    assert.doesNotMatch(summary, /untitled:|Mock-намёк/);
+    assert.match(api.journal.exportText('full'), /untitled:/);
+
+    await api.journal.clear();
+    assert.strictEqual(api.journal.all().length, 0);
+    await reviewNew();
+    assert.strictEqual(api.journal.all().length, 2);
   });
 });

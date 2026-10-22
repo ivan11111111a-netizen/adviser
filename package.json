@@ -92,6 +92,16 @@
         "category": "Adviser"
       },
       {
+        "command": "adviser.exportJournal",
+        "title": "Экспорт журнала",
+        "category": "Adviser"
+      },
+      {
+        "command": "adviser.clearJournal",
+        "title": "Очистить журнал",
+        "category": "Adviser"
+      },
+      {
         "command": "adviser.weeklyReport",
         "title": "Отчёт за неделю",
         "category": "Adviser",
@@ -110,6 +120,16 @@
           "command": "adviser.weeklyReport",
           "when": "view == adviser.journal",
           "group": "navigation"
+        },
+        {
+          "command": "adviser.exportJournal",
+          "when": "view == adviser.journal",
+          "group": "journal@1"
+        },
+        {
+          "command": "adviser.clearJournal",
+          "when": "view == adviser.journal",
+          "group": "journal@2"
         }
       ]
     },
