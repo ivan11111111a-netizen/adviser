@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+import { reindent } from '../core/applyFix';
 import { diagnosticText, shortQuote } from '../core/disclosure';
 import { disagreements, OFFER_HIDE_AFTER } from '../core/journal';
 import type { Pattern } from '../core/patterns';
+import type { Issue } from '../core/reviewSchema';
 import { plural } from '../core/plural';
 import { patternTitle } from './bundled';
 import type { Findings } from './findings';
@@ -44,7 +46,10 @@ export function feedbackActions(
           a.diagnostics = diagnostics;
           return a;
         };
+        // Применить можно только уже показанное решение: лампочка не должна обходить ступени.
+        const apply = finding.step >= 3 ? [applyFix(document, finding.range, issue, quote)] : [];
         return [
+          ...apply,
           action(`Adviser: понял${quote}`, FEEDBACK_COMMAND, {
             id: finding.id,
             kind: 'understood',
@@ -62,6 +67,34 @@ export function feedbackActions(
       });
     },
   };
+}
+
+/**
+ * «Применить решение»: код из fix вместо строк замечания. Правка помечена needsConfirmation —
+ * VS Code сначала показывает предпросмотр (6.10 плана: советы применяются только по клику и с превью).
+ */
+function applyFix(
+  document: vscode.TextDocument,
+  range: vscode.Range,
+  issue: Issue,
+  quote: string,
+): vscode.CodeAction {
+  const title = `Adviser: применить решение${quote}`;
+  const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
+  const lines = new vscode.Range(
+    range.start.line,
+    0,
+    range.end.line,
+    document.lineAt(range.end.line).text.length,
+  );
+  const indent = /^[ \t]*/.exec(document.lineAt(range.start.line).text)![0];
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(document.uri, lines, reindent(issue.fix.code, indent), {
+    needsConfirmation: true,
+    label: issue.fix.description,
+  });
+  action.edit = edit;
+  return action;
 }
 
 export class Feedback {

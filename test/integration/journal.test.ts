@@ -133,6 +133,33 @@ suite('Журнал ошибок', () => {
     }
   });
 
+  test('«применить решение» — только после «Показать решение», правка с предпросмотром и отступом места', async () => {
+    const { doc } = await reviewNew();
+    const at = new vscode.Range(1, 5, 1, 5);
+    const titles = async () =>
+      (
+        await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          'vscode.executeCodeActionProvider',
+          doc.uri,
+          at,
+        )
+      ).map((a) => a.title);
+    assert.ok(!(await titles()).includes('Adviser: применить решение'), 'ступени не обходим');
+
+    await click(await hoverText(doc.uri, at.start), 'Показать решение');
+    const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+      'vscode.executeCodeActionProvider',
+      doc.uri,
+      at,
+    );
+    const apply = actions.find((a) => a.title === 'Adviser: применить решение');
+    assert.ok(apply?.edit, actions.map((a) => a.title).join(', '));
+    const [[uri, [change]]] = apply.edit.entries();
+    assert.strictEqual(uri.toString(), doc.uri.toString());
+    assert.strictEqual(change.newText, '  // исправленный код');
+    assert.strictEqual(change.range.start.line, 1);
+  });
+
   test('в третий раз за неделю hover напоминает о повторе и ведёт к прошлому случаю', async () => {
     await reviewNew();
     const { doc: previous } = await reviewNew();
