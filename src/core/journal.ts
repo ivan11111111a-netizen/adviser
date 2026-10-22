@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Step } from './disclosure';
+import type { Translate } from './i18n';
 import { OTHER_PATTERN } from './patterns';
 import type { Level } from './promptBuilder';
 import { SEVERITIES } from './reviewSchema';
@@ -343,47 +344,58 @@ export interface ReportFormat {
   title: (patternId: string) => string;
   day: (time: number) => string;
   level: Level;
+  t: Translate;
 }
 
 const percent = (a: number, b: number) => `${Math.round((a / b) * 100)}%`;
 
 /** Недельный отчёт в Markdown: его показывает предпросмотр Markdown в VS Code. */
 export function renderReport(report: WeeklyReport, format: ReportFormat): string {
-  const { title, day } = format;
-  const lines = [`# Adviser: неделя с ${day(report.from)} по ${day(report.to)}`, ''];
+  const { title, day, t } = format;
+  const lines = [t('# Adviser: week of {0} to {1}', day(report.from), day(report.to)), ''];
   if (!report.total && !report.resolved) {
-    lines.push('За неделю замечаний не было.', '');
+    lines.push(t('No issues this week.'), '');
   } else {
     lines.push(
-      `**Замечаний:** ${report.total}. **Исправлено:** ${report.resolved}` +
-        (report.resolved
-          ? `, из них сам, не открывая готовое решение: ${report.selfSolved} (${percent(report.selfSolved, report.resolved)}).`
-          : '.'),
+      report.resolved
+        ? t(
+            '**Issues:** {0}. **Fixed:** {1}, of them on your own, without opening the solution: {2} ({3}).',
+            report.total,
+            report.resolved,
+            report.selfSolved,
+            percent(report.selfSolved, report.resolved),
+          )
+        : t('**Issues:** {0}. **Fixed:** {1}.', report.total, report.resolved),
       '',
     );
   }
   if (report.explained) {
-    lines.push(`Сам объяснил, в чём ошибка («Проверь меня»): ${report.explained}.`, '');
+    lines.push(t('Explained the mistake yourself ("Check me"): {0}.', report.explained), '');
   }
   if (report.disagreed) {
-    lines.push(`С замечаниями не согласен: ${report.disagreed}.`, '');
+    lines.push(t('Disagreed with issues: {0}.', report.disagreed), '');
   }
   if (report.top.length) {
-    lines.push('## Частые ошибки', '', '| Ошибка | За неделю | Неделей раньше |', '|---|---|---|');
+    lines.push(
+      t('## Frequent mistakes'),
+      '',
+      t('| Mistake | This week | Week before |'),
+      '|---|---|---|',
+    );
     for (const p of report.top) {
       lines.push(`| ${title(p.patternId)} | ${p.count} | ${p.previous} |`);
     }
     lines.push('');
   }
   if (report.gone.length) {
-    lines.push('## Ушло по сравнению с прошлой неделей', '');
+    lines.push(t('## Gone since last week'), '');
     for (const p of report.gone) {
-      lines.push(`- ${title(p.patternId)} (было ${p.count})`);
+      lines.push(`- ${title(p.patternId)} ${t('(was {0})', p.count)}`);
     }
     lines.push('');
   }
   if (report.mastered.length) {
-    lines.push('## Освоено', '', 'Эти ошибки не повторялись три недели:', '');
+    lines.push(t('## Mastered'), '', t('These mistakes have not come back for three weeks:'), '');
     for (const p of report.mastered) {
       lines.push(`- ${title(p.patternId)}`);
     }
@@ -391,8 +403,10 @@ export function renderReport(report: WeeklyReport, format: ReportFormat): string
   }
   if (report.levelUp && format.level !== 'advanced') {
     lines.push(
-      `> Ты исправляешь сам ${percent(report.selfSolved, report.resolved)} замечаний. ` +
-        'Может, поднять уровень? Настройка `adviser.level`.',
+      t(
+        '> You fix {0} of issues on your own. Time to raise the level? Setting `adviser.level`.',
+        percent(report.selfSolved, report.resolved),
+      ),
       '',
     );
   }

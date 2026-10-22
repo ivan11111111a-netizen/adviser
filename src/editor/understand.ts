@@ -7,6 +7,7 @@ import {
   renderQuizReport,
   type FileDiff,
 } from '../core/understand';
+import { translate } from './bundled';
 import { currentMode, doNotDisturbUntil } from './mode';
 import type { Reviewer } from './reviewer';
 import { ownerUri } from './settings';
@@ -107,31 +108,40 @@ export async function understandChanges(
 ) {
   const repo = await repositoryFor(vscode.window.activeTextEditor?.document.uri);
   if (!repo) {
-    status.flash('папка не в git: Adviser сравнивает изменения с последним коммитом');
+    status.flash(
+      vscode.l10n.t('the folder is not in git: Adviser compares changes with the last commit'),
+    );
     return;
   }
   const fitted = fitDiffs(await collectDiffs(repo, reviewer, log));
   if (!fitted.included.length) {
-    status.flash('изменений нет: всё как в последнем коммите');
+    status.flash(vscode.l10n.t('no changes: everything is as in the last commit'));
     return;
   }
   const asked = await status.busy(reviewer.quizQuestions(fitted.text, repo.rootUri));
   if (asked.kind !== 'done') {
-    status.flash(asked.kind === 'refused' ? asked.message : 'не получилось составить вопросы');
+    status.flash(
+      asked.kind === 'refused' ? asked.message : vscode.l10n.t('could not make up questions'),
+    );
     return;
   }
   const quiz = { ...asked.data, questions: asked.data.questions.slice(0, MAX_QUESTIONS) };
   if (!quiz.questions.length) {
-    status.flash('вопросов нет: изменения слишком мелкие');
+    status.flash(vscode.l10n.t('no questions: the changes are too small'));
     return;
   }
   const answers = args?.answers ?? [];
   if (!args?.answers) {
     for (const [i, q] of quiz.questions.entries()) {
       const answer = await vscode.window.showInputBox({
-        title: `Adviser: вопрос ${i + 1} из ${quiz.questions.length} · ${q.file}`,
+        title: vscode.l10n.t(
+          'Adviser: question {0} of {1} · {2}',
+          i + 1,
+          quiz.questions.length,
+          q.file,
+        ),
         prompt: q.question,
-        placeHolder: 'Ответь своими словами. Пусто — пропустить',
+        placeHolder: vscode.l10n.t('Answer in your own words. Empty to skip'),
         ignoreFocusOut: true,
       });
       if (answer === undefined) {
@@ -143,7 +153,9 @@ export async function understandChanges(
   }
   const checked = await status.busy(reviewer.quizAnswers(fitted.text, quiz, answers, repo.rootUri));
   if (checked.kind !== 'done') {
-    status.flash(checked.kind === 'refused' ? checked.message : 'не получилось проверить ответы');
+    status.flash(
+      checked.kind === 'refused' ? checked.message : vscode.l10n.t('could not check the answers'),
+    );
     return;
   }
   const right = checked.data.filter((r) => r.understood).length;
@@ -152,7 +164,7 @@ export async function understandChanges(
   await vscode.workspace.fs.createDirectory(context.globalStorageUri);
   await vscode.workspace.fs.writeFile(
     file,
-    new TextEncoder().encode(renderQuizReport(quiz, answers, checked.data, fitted)),
+    new TextEncoder().encode(renderQuizReport(quiz, answers, checked.data, fitted, translate)),
   );
   await vscode.commands.executeCommand('markdown.showPreview', file);
 }
@@ -185,10 +197,13 @@ export async function suggestUnderstand(
     return;
   }
   suggestedAt = now;
-  const check = 'Проверить себя';
+  const check = vscode.l10n.t('Check myself');
   const name = vscode.workspace.asRelativePath(doc.uri, false);
   const answer = await vscode.window.showInformationMessage(
-    `Adviser: «${name}» сильно изменился извне — например, его переписал ИИ-агент. Проверить, понимаешь ли ты изменения?`,
+    vscode.l10n.t(
+      'Adviser: "{0}" changed a lot from outside — for example, an AI agent rewrote it. Check whether you understand the changes?',
+      name,
+    ),
     check,
   );
   if (answer === check) {

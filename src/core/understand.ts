@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ModelRequest } from './engine';
+import { untranslated, type Translate } from './i18n';
 import {
   fillTemplate,
   type AdviceLanguage,
@@ -145,27 +146,36 @@ export function renderQuizReport(
   answers: readonly string[],
   results: readonly QuizResult[],
   files: { included: string[]; skipped: string[] },
+  t: Translate = untranslated,
 ): string {
   const right = results.filter((r) => r.understood).length;
   const lines = [
-    '# Adviser: понимаешь ли ты изменения',
+    t('# Adviser: do you understand the changes'),
     '',
-    `Сравнение с последним коммитом, файлов: ${files.included.length}. Верно: ${right} из ${quiz.questions.length}.`,
+    t(
+      'Compared with the last commit, files: {0}. Correct: {1} of {2}.',
+      files.included.length,
+      right,
+      quiz.questions.length,
+    ),
     '',
   ];
   if (files.skipped.length) {
-    lines.push(`Не вошли (слишком длинные изменения): ${files.skipped.join(', ')}.`, '');
+    lines.push(t('Left out (changes too long): {0}.', files.skipped.join(', ')), '');
   }
-  lines.push(`**Что делает изменение.** ${quiz.summary}`, '');
+  lines.push(`${t('**What the change does.**')} ${quiz.summary}`, '');
   quiz.questions.forEach((q, i) => {
     const result = results.find((r) => r.index === i);
     const answer = answers[i]?.trim();
     lines.push(`## ${i + 1}. ${q.question}`, '', `_${q.file}_`, '');
-    lines.push(`**Твой ответ:** ${answer ? answer.replace(/\s+/g, ' ') : '_пропущен_'}`, '');
+    lines.push(
+      `${t('**Your answer:**')} ${answer ? answer.replace(/\s+/g, ' ') : t('_skipped_')}`,
+      '',
+    );
     if (result) {
-      lines.push(`${result.understood ? '✓' : '**Пока не то.**'} ${result.feedback}`, '');
+      lines.push(`${result.understood ? '✓' : t('**Not quite.**')} ${result.feedback}`, '');
     }
-    lines.push(`**Ответ Adviser:** ${q.answer}`, '');
+    lines.push(`${t("**Adviser's answer:**")} ${q.answer}`, '');
   });
   return lines.join('\n');
 }

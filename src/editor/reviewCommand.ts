@@ -18,7 +18,7 @@ export async function reviewFunction(
 ) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    status.flash('открой файл с кодом');
+    status.flash(vscode.l10n.t('open a code file'));
     return;
   }
   const doc = editor.document;
@@ -35,7 +35,9 @@ export async function reviewFunction(
       const { issues } = outcome.review;
       showReview(findings, doc, range, issues, outcome.presentation);
       onReviewed(doc, code);
-      status.flash(issues.length ? `замечаний: ${issues.length}` : 'замечаний нет');
+      status.flash(
+        issues.length ? vscode.l10n.t('issues: {0}', issues.length) : vscode.l10n.t('no issues'),
+      );
       return;
     }
     case 'refused':
@@ -43,7 +45,7 @@ export async function reviewFunction(
       status.flash(outcome.message);
       return;
     case 'failed':
-      status.flash('не получилось разобрать, подробности в Output → Adviser');
+      status.flash(vscode.l10n.t('the review failed, details in Output → Adviser'));
       return;
   }
 }

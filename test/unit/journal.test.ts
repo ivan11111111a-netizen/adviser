@@ -18,6 +18,7 @@ import {
   WEEK,
   type JournalEntry,
 } from '../../src/core/journal';
+import { ru } from './ru';
 
 const DAY = 86_400_000;
 const now = 100 * DAY;
@@ -98,7 +99,7 @@ test('«объяснил сам»: не теряется при слиянии, 
   const report = weeklyReport(all, now);
   expect(report.explained).toBe(1);
   expect(
-    renderReport(report, { title: (id) => id, day: () => 'день', level: 'beginner' }),
+    renderReport(report, { title: (id) => id, day: () => 'день', level: 'beginner', t: ru }),
   ).toContain('Сам объяснил, в чём ошибка («Проверь меня»): 1.');
   expect(journalSummary(all)).toMatchObject({ explained: 2 });
 });
@@ -233,13 +234,14 @@ describe('weeklyReport', () => {
       title: (id) => `«${id}»`,
       day: (t) => `день ${t / DAY}`,
       level: 'beginner',
+      t: ru,
     });
     expect(text).toContain('# Adviser: неделя с день 93 по день 100');
     expect(text).toContain('из них сам, не открывая готовое решение: 1 (50%)');
     expect(text).toContain('| «off-by-one» | 2 | 1 |');
     expect(text).toContain('- «division-by-zero» (было 1)');
     expect(
-      renderReport(weeklyReport([], now), { title: String, day: String, level: 'beginner' }),
+      renderReport(weeklyReport([], now), { title: String, day: String, level: 'beginner', t: ru }),
     ).toContain('За неделю замечаний не было.');
   });
 });

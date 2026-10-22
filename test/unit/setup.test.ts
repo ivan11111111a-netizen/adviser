@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { ru } from './ru';
 import { checkOpenRouterModel, parseModelList } from '../../src/core/setup';
 
 test('parseModelList: id из data, отсортированы; мусор — пустой список', () => {
@@ -14,6 +15,7 @@ test('parseModelList: id из data, отсортированы; мусор — �
 
 test('checkOpenRouterModel', () => {
   expect(checkOpenRouterModel('qwen/qwen3-coder:free')).toBeUndefined();
-  expect(checkOpenRouterModel('  ')).toBe('укажи модель');
-  expect(checkOpenRouterModel('qwen3-coder')).toMatch(/автор\/модель/);
+  expect(checkOpenRouterModel('  ', ru)).toBe('укажи модель');
+  expect(checkOpenRouterModel('  ')).toBe('enter a model');
+  expect(checkOpenRouterModel('qwen3-coder', ru)).toMatch(/автор\/модель/);
 });

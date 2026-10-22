@@ -160,19 +160,21 @@ export async function exportJournal(journal: Journal) {
   const picked = await vscode.window.showQuickPick(
     [
       {
-        label: 'Обезличенная сводка',
-        detail:
-          'Только типы ошибок и числа: без файлов, кода и текстов. Для преподавателя или пилота.',
+        label: vscode.l10n.t('Anonymous summary'),
+        detail: vscode.l10n.t(
+          'Only mistake types and numbers: no files, code or texts. For a teacher or a pilot.',
+        ),
         exportKind: 'summary' as const,
       },
       {
-        label: 'Полный журнал',
-        detail:
-          'Все случаи: файлы, строки, тексты намёков. Для себя или переноса на другой компьютер.',
+        label: vscode.l10n.t('Full journal'),
+        detail: vscode.l10n.t(
+          'All cases: files, lines, hint texts. For yourself or to move to another computer.',
+        ),
         exportKind: 'full' as const,
       },
     ],
-    { title: 'Adviser: экспорт журнала' },
+    { title: vscode.l10n.t('Adviser: export the journal') },
   );
   if (!picked) {
     return;
@@ -191,19 +193,28 @@ export async function exportJournal(journal: Journal) {
     target,
     new TextEncoder().encode(journal.exportText(picked.exportKind)),
   );
-  vscode.window.setStatusBarMessage(`Adviser: журнал сохранён в ${target.fsPath}`, 6000);
+  vscode.window.setStatusBarMessage(
+    vscode.l10n.t('Adviser: the journal is saved to {0}', target.fsPath),
+    6000,
+  );
 }
 
 /** Команда «Очистить журнал» — с подтверждением: это не отменить. */
 export async function clearJournal(journal: Journal) {
-  const clear = 'Очистить';
+  const clear = vscode.l10n.t('Clear');
   const answer = await vscode.window.showWarningMessage(
-    `Удалить все случаи из журнала (${journal.all().length})? Это нельзя отменить.`,
-    { modal: true, detail: 'Перед этим можно сохранить журнал: «Adviser: Экспорт журнала».' },
+    vscode.l10n.t(
+      'Delete all cases from the journal ({0})? This cannot be undone.',
+      journal.all().length,
+    ),
+    {
+      modal: true,
+      detail: vscode.l10n.t('You can save the journal first: "Adviser: Export Journal".'),
+    },
     clear,
   );
   if (answer === clear) {
     await journal.clear();
-    vscode.window.setStatusBarMessage('Adviser: журнал очищен', 6000);
+    vscode.window.setStatusBarMessage(vscode.l10n.t('Adviser: the journal is cleared'), 6000);
   }
 }

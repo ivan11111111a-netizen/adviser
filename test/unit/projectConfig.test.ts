@@ -38,7 +38,7 @@ describe('parseProjectConfig', () => {
   });
 
   test('ошибки — понятной строкой: не JSON и не по схеме', () => {
-    expect(parseProjectConfig('{ mode: ').error).toMatch(/^не JSON/);
+    expect(parseProjectConfig('{ mode: ').error).toMatch(/^not JSON/);
     expect(parseProjectConfig('{"mode":"loud","limits":{"perHour":-1}}').error).toMatch(
       /mode: .*; limits\.perHour: /,
     );

@@ -113,7 +113,8 @@ export function parseProjectConfig(text: string): { config?: ProjectConfig; erro
   try {
     raw = JSON.parse(text);
   } catch (e) {
-    return { error: `не JSON: ${e instanceof Error ? e.message : String(e)}` };
+    // Сообщение JSON.parse — английское, как и у zod ниже: это технические подробности.
+    return { error: `not JSON: ${e instanceof Error ? e.message : String(e)}` };
   }
   const parsed = projectConfigSchema.safeParse(raw);
   return parsed.success

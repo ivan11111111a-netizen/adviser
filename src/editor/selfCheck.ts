@@ -23,17 +23,20 @@ export async function checkYourself(
 ) {
   const finding = args && findings.byId(args.id);
   if (!finding || finding.hidden) {
-    status.flash('замечание устарело: разбери функцию заново');
+    status.flash(vscode.l10n.t('the issue is outdated: review the function again'));
     return;
   }
   const answer =
     args.answer ??
     (await vscode.window.showInputBox({
-      title: 'Adviser: проверь себя',
-      prompt: 'В чём ошибка? Объясни своими словами, а Adviser скажет, верно ли.',
+      title: vscode.l10n.t('Adviser: check yourself'),
+      prompt: vscode.l10n.t(
+        "What is the mistake? Explain it in your own words, and Adviser will tell you if you're right.",
+      ),
       placeHolder: shortQuote(finding.issue.hint, 80),
       ignoreFocusOut: true,
-      validateInput: (v) => (v.trim() ? undefined : 'Напиши хотя бы пару слов'),
+      validateInput: (v) =>
+        v.trim() ? undefined : vscode.l10n.t('Write at least a couple of words'),
     }));
   if (!answer?.trim()) {
     return;
@@ -57,7 +60,7 @@ export async function checkYourself(
       status.flash(outcome.message);
       return;
     case 'failed':
-      status.flash('не получилось проверить ответ, подробности в Output → Adviser');
+      status.flash(vscode.l10n.t('could not check the answer, details in Output → Adviser'));
       return;
   }
   const { understood, feedback } = outcome;
@@ -69,7 +72,7 @@ export async function checkYourself(
   }
   if (!(await showHoverAgain(finding))) {
     void vscode.window.showInformationMessage(
-      `Adviser: ${understood ? '✓' : 'пока не то.'} ${feedback}`,
+      `Adviser: ${understood ? '✓' : vscode.l10n.t('not quite.')} ${feedback}`,
     );
   }
 }

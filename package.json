@@ -1,7 +1,7 @@
 {
   "name": "adviser",
   "displayName": "Adviser",
-  "description": "ИИ-наставник для тех, кто учится программировать",
+  "description": "%description%",
   "version": "0.5.0",
   "license": "MIT",
   "repository": {
@@ -34,6 +34,7 @@
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
+  "l10n": "./l10n",
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": false
@@ -43,84 +44,84 @@
     "commands": [
       {
         "command": "adviser.reviewFunction",
-        "title": "Разобрать эту функцию",
+        "title": "%command.reviewFunction%",
         "category": "Adviser"
       },
       {
         "command": "adviser.setApiKey",
-        "title": "Задать API-ключ",
+        "title": "%command.setApiKey%",
         "category": "Adviser"
       },
       {
         "command": "adviser.openWalkthrough",
-        "title": "Начало работы",
+        "title": "%command.openWalkthrough%",
         "category": "Adviser"
       },
       {
         "command": "adviser.setupOpenRouter",
-        "title": "Подключить модель: бесплатно через OpenRouter",
+        "title": "%command.setupOpenRouter%",
         "category": "Adviser"
       },
       {
         "command": "adviser.setupCopilot",
-        "title": "Подключить модель: через GitHub Copilot",
+        "title": "%command.setupCopilot%",
         "category": "Adviser"
       },
       {
         "command": "adviser.setupOllama",
-        "title": "Подключить модель: локально через Ollama",
+        "title": "%command.setupOllama%",
         "category": "Adviser"
       },
       {
         "command": "adviser.setupOwnKey",
-        "title": "Подключить модель: свой ключ",
+        "title": "%command.setupOwnKey%",
         "category": "Adviser"
       },
       {
         "command": "adviser.chooseLevel",
-        "title": "Выбрать уровень",
+        "title": "%command.chooseLevel%",
         "category": "Adviser"
       },
       {
         "command": "adviser.tryReview",
-        "title": "Пробный разбор",
+        "title": "%command.tryReview%",
         "category": "Adviser"
       },
       {
         "command": "adviser.revokeConsent",
-        "title": "Отозвать разрешение на отправку кода",
+        "title": "%command.revokeConsent%",
         "category": "Adviser"
       },
       {
         "command": "adviser.showMenu",
-        "title": "Режим и «Не беспокоить»",
+        "title": "%command.showMenu%",
         "category": "Adviser"
       },
       {
         "command": "adviser.exportJournal",
-        "title": "Экспорт журнала",
+        "title": "%command.exportJournal%",
         "category": "Adviser"
       },
       {
         "command": "adviser.clearJournal",
-        "title": "Очистить журнал",
+        "title": "%command.clearJournal%",
         "category": "Adviser"
       },
       {
         "command": "adviser.weeklyReport",
-        "title": "Отчёт за неделю",
+        "title": "%command.weeklyReport%",
         "category": "Adviser",
         "icon": "$(graph)"
       },
       {
         "command": "adviser.exercise",
-        "title": "Упражнение на частую ошибку",
+        "title": "%command.exercise%",
         "category": "Adviser",
         "icon": "$(mortar-board)"
       },
       {
         "command": "adviser.understandChanges",
-        "title": "Понимаю ли я изменения",
+        "title": "%command.understandChanges%",
         "category": "Adviser"
       }
     ],
@@ -167,7 +168,7 @@
       "adviser": [
         {
           "id": "adviser.journal",
-          "name": "Журнал"
+          "name": "%view.journal%"
         }
       ]
     },
@@ -180,15 +181,15 @@
     "walkthroughs": [
       {
         "id": "adviser.start",
-        "title": "Начало работы с Adviser",
-        "description": "ИИ-наставник для тех, кто учится программировать: подключить модель, выбрать уровень и попробовать разбор.",
+        "title": "%walkthrough.title%",
+        "description": "%walkthrough.description%",
         "steps": [
           {
             "id": "model",
-            "title": "Кто будет разбирать код",
-            "description": "Бесплатно через OpenRouter, через GitHub Copilot, локально через Ollama или со своим ключом.\n[Бесплатно: OpenRouter](command:adviser.setupOpenRouter)\n[Через GitHub Copilot](command:adviser.setupCopilot)\n[Локально: Ollama](command:adviser.setupOllama)\n[Свой ключ](command:adviser.setupOwnKey)",
+            "title": "%walkthrough.model.title%",
+            "description": "%walkthrough.model.description%",
             "media": {
-              "markdown": "walkthrough/model.md"
+              "markdown": "%walkthrough.model.media%"
             },
             "completionEvents": [
               "onSettingChanged:adviser.model"
@@ -196,10 +197,10 @@
           },
           {
             "id": "level",
-            "title": "Твой уровень",
-            "description": "От уровня зависит, о чём Adviser говорит, а о чём молчит.\n[Выбрать уровень](command:adviser.chooseLevel)",
+            "title": "%walkthrough.level.title%",
+            "description": "%walkthrough.level.description%",
             "media": {
-              "markdown": "walkthrough/level.md"
+              "markdown": "%walkthrough.level.media%"
             },
             "completionEvents": [
               "onCommand:adviser.chooseLevel"
@@ -207,10 +208,10 @@
           },
           {
             "id": "try",
-            "title": "Пробный разбор",
-            "description": "Учебная функция с типовой ошибкой: посмотри, как приходят намёк, объяснение и решение.\n[Попробовать](command:adviser.tryReview)",
+            "title": "%walkthrough.try.title%",
+            "description": "%walkthrough.try.description%",
             "media": {
-              "markdown": "walkthrough/try.md"
+              "markdown": "%walkthrough.try.media%"
             },
             "completionEvents": [
               "onCommand:adviser.tryReview"
@@ -218,10 +219,10 @@
           },
           {
             "id": "journal",
-            "title": "Журнал ошибок",
-            "description": "Частые ошибки, недельный отчёт и то, что ты уже освоил.\n[Открыть журнал](command:adviser.journal.focus)",
+            "title": "%walkthrough.journal.title%",
+            "description": "%walkthrough.journal.description%",
             "media": {
-              "markdown": "walkthrough/journal.md"
+              "markdown": "%walkthrough.journal.media%"
             },
             "completionEvents": [
               "onView:adviser.journal"
@@ -233,7 +234,7 @@
     "viewsWelcome": [
       {
         "view": "adviser.journal",
-        "contents": "Здесь появятся твои частые ошибки, недельный отчёт и то, что ты уже освоил.\n\nЖурнал хранится только на этом компьютере и никуда не отправляется.\n\n[Разобрать эту функцию](command:adviser.reviewFunction)"
+        "contents": "%view.journal.welcome%"
       }
     ],
     "configuration": {
@@ -247,12 +248,12 @@
             "manual"
           ],
           "enumDescriptions": [
-            "Наставник: сам разбирает изменённые функции при сохранении, уходе из функции и после паузы 30 с. Не чаще 20 разборов в час.",
-            "Ревьюер: сам разбирает при сохранении и уходе из функции, не чаще 6 раз в час. Ступеней нет: сразу объяснение и решение.",
-            "Вручную: только по команде «Разобрать эту функцию»."
+            "%config.mode.enum.mentor%",
+            "%config.mode.enum.reviewer%",
+            "%config.mode.enum.manual%"
           ],
           "default": "mentor",
-          "description": "Когда Adviser разбирает код. Переключается и по клику на Adviser в статус-баре."
+          "description": "%config.mode.description%"
         },
         "adviser.level": {
           "type": "string",
@@ -262,12 +263,12 @@
             "advanced"
           ],
           "enumDescriptions": [
-            "Новичок: логика, крайние случаи, обработка ошибок, именование. Без архитектуры и производительности.",
-            "Средний: плюс структура функций, дубли и типы. Без крупной архитектуры.",
-            "Продвинутый: всё, включая производительность и архитектуру."
+            "%config.level.enum.beginner%",
+            "%config.level.enum.intermediate%",
+            "%config.level.enum.advanced%"
           ],
           "default": "beginner",
-          "description": "Уровень учащегося: от него зависит, о чём Adviser говорит и о чём молчит."
+          "description": "%config.level.description%"
         },
         "adviser.language": {
           "type": "string",
@@ -277,12 +278,12 @@
             "en"
           ],
           "enumDescriptions": [
-            "По языку интерфейса VS Code: русский интерфейс — советы по-русски, любой другой — по-английски.",
-            "По-русски.",
-            "По-английски."
+            "%config.language.enum.auto%",
+            "%config.language.enum.ru%",
+            "%config.language.enum.en%"
           ],
           "default": "auto",
-          "description": "Язык советов."
+          "description": "%config.language.description%"
         },
         "adviser.solutionDelay": {
           "type": "string",
@@ -292,12 +293,12 @@
             "off"
           ],
           "enumDescriptions": [
-            "Если ты часто открываешь решение сразу (в 70% случаев за две недели), «Показать решение» появляется через минуту после замечания.",
-            "Всегда через минуту: сначала попробуй сам.",
-            "Решение доступно сразу."
+            "%config.solutionDelay.enum.auto%",
+            "%config.solutionDelay.enum.always%",
+            "%config.solutionDelay.enum.off%"
           ],
           "default": "auto",
-          "description": "Пауза перед «Показать решение». На критичные ошибки и режим «Ревьюер» не действует."
+          "description": "%config.solutionDelay.description%"
         },
         "adviser.hiddenPatterns": {
           "type": "array",
@@ -305,47 +306,47 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "Типы ошибок (`patternId` из `patterns/patterns.json`), о которых Adviser больше не говорит. Пополняется из лампочки у замечания: «больше не показывать»."
+          "markdownDescription": "%config.hiddenPatterns.markdownDescription%"
         },
         "adviser.budget.inputPricePerMillion": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "scope": "machine",
-          "markdownDescription": "Цена входных токенов своего ключа, $ за миллион — для учёта расходов. 0 — деньги не считать (бесплатные и локальные модели)."
+          "markdownDescription": "%config.budget.inputPricePerMillion.markdownDescription%"
         },
         "adviser.budget.outputPricePerMillion": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "scope": "machine",
-          "markdownDescription": "Цена выходных токенов, $ за миллион."
+          "markdownDescription": "%config.budget.outputPricePerMillion.markdownDescription%"
         },
         "adviser.budget.dailyLimitUsd": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "scope": "machine",
-          "markdownDescription": "Лимит расходов в день, $. Исчерпан — разборы на паузе до завтра. 0 — без лимита."
+          "markdownDescription": "%config.budget.dailyLimitUsd.markdownDescription%"
         },
         "adviser.budget.monthlyLimitUsd": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "scope": "machine",
-          "markdownDescription": "Лимит расходов в месяц, $. 0 — без лимита."
+          "markdownDescription": "%config.budget.monthlyLimitUsd.markdownDescription%"
         },
         "adviser.budget.fallbackModel": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Когда лимит исчерпан, разбирать этой моделью на своём компьютере (например, `qwen2.5-coder:7b` в Ollama). Пусто — разборы на паузе до нового дня или месяца."
+          "markdownDescription": "%config.budget.fallbackModel.markdownDescription%"
         },
         "adviser.budget.fallbackBaseUrl": {
           "type": "string",
           "default": "http://localhost:11434/v1",
           "scope": "machine",
-          "markdownDescription": "Адрес запасной модели. Только сервер на этом компьютере (`localhost`): запасной путь бесплатный, и код не уходит в сеть."
+          "markdownDescription": "%config.budget.fallbackBaseUrl.markdownDescription%"
         },
         "adviser.provider": {
           "type": "string",
@@ -356,38 +357,38 @@
             "mock"
           ],
           "enumDescriptions": [
-            "OpenRouter, Ollama (/v1), LM Studio и другие OpenAI-совместимые серверы.",
-            "Модели GitHub Copilot через VS Code: ключ не нужен, нужен Copilot (у студентов бывает бесплатным через GitHub Education). В Cursor не работает. adviser.model — семейство модели, пусто — первая доступная.",
-            "Только для разработки Adviser: подписка Claude через Claude Code CLI. Работает только при запуске из исходников (F5).",
-            "Только для разработки и тестов: заготовленный ответ без модели."
+            "%config.provider.enum.openai-compatible%",
+            "%config.provider.enum.copilot%",
+            "%config.provider.enum.claude-code%",
+            "%config.provider.enum.mock%"
           ],
           "default": "openai-compatible",
           "scope": "machine",
-          "description": "Кто разбирает код. Берётся только из настроек пользователя, не из настроек проекта."
+          "description": "%config.provider.description%"
         },
         "adviser.baseUrl": {
           "type": "string",
           "default": "https://openrouter.ai/api/v1",
           "scope": "machine",
-          "markdownDescription": "Адрес OpenAI-совместимого сервера. Для Ollama — `http://localhost:11434/v1`; в WSL и по SSH `localhost` указывает на другую машину."
+          "markdownDescription": "%config.baseUrl.markdownDescription%"
         },
         "adviser.model": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Модель. Для OpenRouter — id модели, бесплатные с суффиксом `:free`. Для `claude-code` по умолчанию `sonnet`."
+          "markdownDescription": "%config.model.markdownDescription%"
         },
         "adviser.dev.prompt": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "markdownDescription": "Только для разработки: версия промпта из `prompts/`, например `mentor.v2`. Пусто — та, что в расширении. Работает только при запуске из исходников (F5)."
+          "markdownDescription": "%config.dev.prompt.markdownDescription%"
         },
         "adviser.dev.claudePath": {
           "type": "string",
           "default": "claude",
           "scope": "machine",
-          "description": "Только для разработки: путь к Claude Code CLI для провайдера claude-code."
+          "description": "%config.dev.claudePath.description%"
         }
       }
     }

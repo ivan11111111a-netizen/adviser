@@ -8,6 +8,7 @@ import {
   type UsageLog,
 } from '../core/budget';
 import type { Usage } from '../core/engine';
+import { translate } from './bundled';
 
 const KEY = 'adviser.usage';
 
@@ -43,7 +44,7 @@ export class UsageTracker implements vscode.Disposable {
 
   /** Почему разборы на паузе из-за денег; undefined — можно разбирать. */
   exceeded(): string | undefined {
-    return budgetExceeded(this.log, Date.now(), this.budget());
+    return budgetExceeded(this.log, Date.now(), this.budget(), translate);
   }
 
   /** Строки для подсказки статус-бара. */
@@ -53,7 +54,10 @@ export class UsageTracker implements vscode.Disposable {
       return [];
     }
     const budget = this.budget();
-    return [`Сегодня: ${formatUsage(today, budget)}.`, `За месяц: ${formatUsage(month, budget)}.`];
+    return [
+      vscode.l10n.t('Today: {0}.', formatUsage(today, budget, translate)),
+      vscode.l10n.t('This month: {0}.', formatUsage(month, budget, translate)),
+    ];
   }
 
   dispose() {

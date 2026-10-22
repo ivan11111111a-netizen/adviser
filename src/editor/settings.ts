@@ -128,7 +128,7 @@ export class ProjectSettings implements vscode.Disposable {
     const loaded: Loaded = { ignore: [] };
     const errors: string[] = [];
     if (configText instanceof Error) {
-      errors.push(`${CONFIG_PATH} не прочитан: ${configText.message}`);
+      errors.push(vscode.l10n.t('{0} could not be read: {1}', CONFIG_PATH, configText.message));
     } else if (configText !== undefined) {
       const { config, error } = parseProjectConfig(configText);
       if (error === undefined) {
@@ -138,7 +138,7 @@ export class ProjectSettings implements vscode.Disposable {
       }
     }
     if (ignoreText instanceof Error) {
-      errors.push(`${IGNORE_FILE} не прочитан: ${ignoreText.message}`);
+      errors.push(vscode.l10n.t('{0} could not be read: {1}', IGNORE_FILE, ignoreText.message));
     } else if (ignoreText !== undefined) {
       const { globs, skipped } = gitignoreToGlobs(ignoreText);
       loaded.ignore = globs;

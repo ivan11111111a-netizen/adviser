@@ -1,3 +1,5 @@
+import { untranslated, type Translate } from './i18n';
+
 /** Куда уходит код: провайдер, адрес сервера и модель (6.10 плана). */
 export interface Destination {
   baseUrl: string;
@@ -30,18 +32,24 @@ export function isFreeTier(destination: Destination): boolean {
 }
 
 /** Текст окна согласия: куда, что уходит, что не уходит, и про бесплатные модели. */
-export function consentDetail(destination: Destination): string {
+export function consentDetail(destination: Destination, t: Translate = untranslated): string {
   const lines = [
-    `Куда: ${consentKey(destination)}, модель ${destination.model}.`,
+    t('Where: {0}, model {1}.', consentKey(destination), destination.model),
     '',
-    'Что уходит: код разбираемой функции и её окружение — что нашли линтер и компилятор, первые строки соседних функций, версии зависимостей, правила стиля проекта.',
+    t(
+      "What is sent: the code of the function being reviewed and its surroundings — what the linter and compiler found, the first lines of nearby functions, dependency versions, the project's style rules.",
+    ),
     '',
-    'Что не уходит: файлы .env*, всё из .adviserignore и ignore в .adviser/config.json. Ключи и пароли в коде заменяются меткой до отправки. Журнал ошибок остаётся на этом компьютере, телеметрии нет.',
+    t(
+      'What is not sent: .env* files, anything in .adviserignore or in ignore in .adviser/config.json. Keys and passwords in the code are replaced with a placeholder before sending. The mistake journal stays on this computer; there is no telemetry.',
+    ),
   ];
   if (isFreeTier(destination)) {
     lines.push(
       '',
-      'Бесплатные модели: провайдер может использовать запросы для обучения своих моделей. Для учебных проектов это обычно приемлемо, для рабочего кода — нет.',
+      t(
+        'Free models: the provider may use requests to train its models. This is usually fine for study projects, but not for work code.',
+      ),
     );
   }
   return lines.join('\n');

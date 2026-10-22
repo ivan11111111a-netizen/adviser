@@ -2,7 +2,8 @@ import * as vscode from 'vscode';
 import { exerciseChoices, exerciseLanguage, exerciseText } from '../core/exercise';
 import { learnerProfile } from '../core/journal';
 import type { Pattern } from '../core/patterns';
-import { plural } from '../core/plural';
+import { pluralForm } from '../core/i18n';
+import { patternTitle } from './bundled';
 import type { Findings } from './findings';
 import type { Journal } from './journal';
 import type { Reviewer } from './reviewer';
@@ -40,7 +41,7 @@ export async function startExercise(
       status.flash(outcome.message);
       return;
     case 'failed':
-      status.flash('не получилось составить упражнение, подробности в Output → Adviser');
+      status.flash(vscode.l10n.t('could not make up an exercise, details in Output → Adviser'));
       return;
   }
   const doc = await vscode.workspace.openTextDocument({
@@ -49,7 +50,7 @@ export async function startExercise(
   });
   findings.markExercise(doc.uri);
   await vscode.window.showTextDocument(doc);
-  status.flash('упражнение готово: найди ошибку');
+  status.flash(vscode.l10n.t('the exercise is ready: find the mistake'));
 }
 
 async function pickPattern(
@@ -66,24 +67,31 @@ async function pickPattern(
   const items: Item[] = [];
   const top = choices.filter((c) => c.count);
   if (top.length) {
-    items.push({ label: 'Твои частые ошибки', kind: vscode.QuickPickItemKind.Separator });
+    items.push({
+      label: vscode.l10n.t('Your frequent mistakes'),
+      kind: vscode.QuickPickItemKind.Separator,
+    });
     items.push(
       ...top.map((c) => ({
-        label: c.pattern.title.ru,
-        description: `${c.count} ${plural(c.count!, 'раз', 'раза', 'раз')} за три недели`,
+        label: patternTitle(patterns, c.pattern.id),
+        description: vscode.l10n.t(
+          '{0} {1} in three weeks',
+          c.count!,
+          pluralForm(c.count!, vscode.l10n.t('time|times')),
+        ),
         pattern: c.pattern,
       })),
     );
-    items.push({ label: 'Другие', kind: vscode.QuickPickItemKind.Separator });
+    items.push({ label: vscode.l10n.t('Other'), kind: vscode.QuickPickItemKind.Separator });
   }
   items.push(
     ...choices
       .filter((c) => !c.count)
-      .map((c) => ({ label: c.pattern.title.ru, pattern: c.pattern })),
+      .map((c) => ({ label: patternTitle(patterns, c.pattern.id), pattern: c.pattern })),
   );
   const picked = await vscode.window.showQuickPick(items, {
-    title: 'Adviser: упражнение',
-    placeHolder: 'Какую ошибку потренировать',
+    title: vscode.l10n.t('Adviser: exercise'),
+    placeHolder: vscode.l10n.t('Which mistake do you want to practice'),
     matchOnDescription: true,
     // Иначе страница «Начало работы» (webview) забирает фокус и закрывает список.
     ignoreFocusOut: true,

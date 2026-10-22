@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { LEVELS, type Level } from '../core/promptBuilder';
 import { checkOpenRouterModel, OLLAMA_URL, OPENROUTER_URL, parseModelList } from '../core/setup';
 import { setApiKey } from '../config/provider';
-import { readBundled } from './bundled';
+import { readBundled, translate } from './bundled';
 import { documentSymbols } from './symbols';
 
 export const WALKTHROUGH = 'adviser.start';
@@ -35,13 +35,14 @@ export async function openWalkthrough(context: vscode.ExtensionContext) {
 /** Путь 1: бесплатно через OpenRouter — модель с :free и ключ. */
 export async function setupOpenRouter(context: vscode.ExtensionContext) {
   const model = await vscode.window.showInputBox({
-    title: 'Adviser: модель OpenRouter',
-    prompt:
-      'Бесплатные модели — с суффиксом :free. Список: openrouter.ai/models (фильтр по цене 0).',
-    placeHolder: 'автор/модель:free',
+    title: vscode.l10n.t('Adviser: OpenRouter model'),
+    prompt: vscode.l10n.t(
+      'Free models end with :free. The list: openrouter.ai/models (filter by price 0).',
+    ),
+    placeHolder: vscode.l10n.t('author/model:free'),
     value: config().get<string>('model', ''),
     ignoreFocusOut: true,
-    validateInput: checkOpenRouterModel,
+    validateInput: (id) => checkOpenRouterModel(id, translate),
   });
   if (model === undefined) {
     return;
@@ -49,11 +50,11 @@ export async function setupOpenRouter(context: vscode.ExtensionContext) {
   await config().update('provider', 'openai-compatible', USER);
   await config().update('baseUrl', OPENROUTER_URL, USER);
   await config().update('model', model.trim(), USER);
-  const getKey = 'Получить ключ на openrouter.ai';
+  const getKey = vscode.l10n.t('Get a key at openrouter.ai');
   const answer = await vscode.window.showInformationMessage(
-    'Теперь нужен ключ OpenRouter. Бесплатный ключ даёт до 50 запросов в сутки.',
+    vscode.l10n.t('Now you need an OpenRouter key. A free key gives up to 50 requests a day.'),
     getKey,
-    'Ключ уже есть',
+    vscode.l10n.t('I have a key'),
   );
   if (answer === getKey) {
     await vscode.env.openExternal(vscode.Uri.parse('https://openrouter.ai/keys'));
@@ -67,9 +68,12 @@ export async function setupOpenRouter(context: vscode.ExtensionContext) {
 export async function setupOllama() {
   const models = await listModels(OLLAMA_URL);
   if (models === undefined) {
-    const download = 'Скачать Ollama';
+    const download = vscode.l10n.t('Download Ollama');
     const answer = await vscode.window.showWarningMessage(
-      `Ollama не отвечает на ${OLLAMA_URL}. Установи и запусти её, скачай модель (например, ollama pull qwen2.5-coder:7b — нужно около 8 ГБ видеопамяти) и повтори.`,
+      vscode.l10n.t(
+        'Ollama does not respond at {0}. Install and start it, download a model (for example, ollama pull qwen2.5-coder:7b — it needs about 8 GB of video memory) and try again.',
+        OLLAMA_URL,
+      ),
       download,
     );
     if (answer === download) {
@@ -79,13 +83,15 @@ export async function setupOllama() {
   }
   if (!models.length) {
     void vscode.window.showWarningMessage(
-      'Ollama работает, но моделей нет. Скачай модель: ollama pull qwen2.5-coder:7b (8 ГБ видеопамяти) или qwen2.5-coder:14b (16 ГБ).',
+      vscode.l10n.t(
+        'Ollama is running but has no models. Download one: ollama pull qwen2.5-coder:7b (8 GB of video memory) or qwen2.5-coder:14b (16 GB).',
+      ),
     );
     return;
   }
   const model = await vscode.window.showQuickPick(models, {
-    title: 'Adviser: модель Ollama',
-    placeHolder: 'Какой моделью разбирать код',
+    title: vscode.l10n.t('Adviser: Ollama model'),
+    placeHolder: vscode.l10n.t('Which model should review the code'),
   });
   if (!model) {
     return;
@@ -93,7 +99,10 @@ export async function setupOllama() {
   await config().update('provider', 'openai-compatible', USER);
   await config().update('baseUrl', OLLAMA_URL, USER);
   await config().update('model', model, USER);
-  vscode.window.setStatusBarMessage(`Adviser: разбирает ${model} на этом компьютере`, 6000);
+  vscode.window.setStatusBarMessage(
+    vscode.l10n.t('Adviser: {0} reviews on this computer', model),
+    6000,
+  );
 }
 
 /** Путь 3: свой ключ любого OpenAI-совместимого провайдера — адрес, модель, ключ. */
@@ -103,28 +112,39 @@ export async function setupOwnKey(context: vscode.ExtensionContext) {
   await setApiKey(context);
 }
 
-const LEVEL_TEXT: Record<Level, { label: string; detail: string }> = {
-  beginner: {
-    label: 'Новичок',
-    detail:
-      'Логика, крайние случаи, обработка ошибок, имена. Без архитектуры и производительности.',
-  },
-  intermediate: {
-    label: 'Средний',
-    detail: 'Плюс структура функций, дубли и типы. Без крупной архитектуры.',
-  },
-  advanced: { label: 'Продвинутый', detail: 'Всё, включая производительность и архитектуру.' },
-};
+function levelText(level: Level): { label: string; detail: string } {
+  switch (level) {
+    case 'beginner':
+      return {
+        label: vscode.l10n.t('Beginner'),
+        detail: vscode.l10n.t(
+          'Logic, edge cases, error handling, names. No architecture or performance.',
+        ),
+      };
+    case 'intermediate':
+      return {
+        label: vscode.l10n.t('Intermediate'),
+        detail: vscode.l10n.t(
+          'Plus function structure, duplication and types. No large-scale architecture.',
+        ),
+      };
+    case 'advanced':
+      return {
+        label: vscode.l10n.t('Advanced'),
+        detail: vscode.l10n.t('Everything, including performance and architecture.'),
+      };
+  }
+}
 
 export async function chooseLevel() {
   const current = config().get<string>('level');
   const picked = await vscode.window.showQuickPick(
     LEVELS.map((level) => ({
-      ...LEVEL_TEXT[level],
-      description: level === current ? 'сейчас' : undefined,
+      ...levelText(level),
+      description: level === current ? vscode.l10n.t('current') : undefined,
       level,
     })),
-    { title: 'Adviser: твой уровень' },
+    { title: vscode.l10n.t('Adviser: your level') },
   );
   if (picked) {
     await config().update('level', picked.level, USER);
@@ -133,7 +153,9 @@ export async function chooseLevel() {
 
 /** Пробный разбор: учебная функция с типовой ошибкой, курсор в ней, сразу разбор. */
 export async function tryReview(context: vscode.ExtensionContext) {
-  const content = await readBundled(context, 'walkthrough', 'sample.js');
+  // Комментарии в учебной функции — на языке интерфейса.
+  const sample = vscode.env.language.startsWith('ru') ? 'sample.js' : 'sample.en.js';
+  const content = await readBundled(context, 'walkthrough', sample);
   const doc = await vscode.workspace.openTextDocument({ language: 'javascript', content });
   const editor = await vscode.window.showTextDocument(doc);
   const line = doc

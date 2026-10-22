@@ -66,6 +66,11 @@ export type ExerciseOutcome =
 
 export type CheckOutcome = { kind: 'checked'; understood: boolean; feedback: string } | NotDone;
 
+const fixConfig = (error: string) => vscode.l10n.t('fix {0}: {1}', CONFIG_PATH, error);
+
+const testInProgress = () =>
+  vscode.l10n.t('test in progress: Adviser is silent in this folder ({0})', CONFIG_PATH);
+
 const textOf = (doc: vscode.TextDocument, range: LineRange) =>
   doc.getText(new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length));
 
@@ -361,10 +366,10 @@ export class Reviewer {
   private quizSettings(uri: vscode.Uri | undefined): Settings | string {
     const settings = this.settings.get(uri);
     if (settings.configError) {
-      return `исправь ${CONFIG_PATH}: ${settings.configError}`;
+      return fixConfig(settings.configError);
     }
     if (settings.course.silent) {
-      return `контрольная: в этой папке Adviser молчит (${CONFIG_PATH})`;
+      return testInProgress();
     }
     return settings;
   }
@@ -428,17 +433,17 @@ export class Reviewer {
   /** Можно ли отправлять этот файл. Строка — почему нельзя. */
   private allowed(doc: vscode.TextDocument): Settings | string {
     if (isEnvFile(doc.uri.fsPath)) {
-      return 'файлы .env* не отправляются';
+      return vscode.l10n.t('.env* files are never sent');
     }
     const settings = this.settings.get(doc.uri);
     if (settings.configError) {
-      return `исправь ${CONFIG_PATH}: ${settings.configError}`;
+      return fixConfig(settings.configError);
     }
     if (settings.course.silent) {
-      return `контрольная: в этой папке Adviser молчит (${CONFIG_PATH})`;
+      return testInProgress();
     }
     if (this.settings.ignored(doc, settings)) {
-      return `файл в ignore ${CONFIG_PATH}, не отправляю`;
+      return vscode.l10n.t('the file is in ignore of {0}, not sending it', CONFIG_PATH);
     }
     return settings;
   }
@@ -456,7 +461,7 @@ export class Reviewer {
     }
     const fallback = createFallbackProvider();
     if (!fallback) {
-      return `${over}, разборы на паузе (настройки adviser.budget)`;
+      return vscode.l10n.t('{0}, reviews are paused (adviser.budget settings)', over);
     }
     this.log.info(`${over}: разбираю запасной моделью ${fallback.destination!.model}`);
     return { configured: fallback, spend: () => {} };
@@ -471,11 +476,13 @@ export class Reviewer {
       return undefined;
     }
     if (!interactive) {
-      return 'нужно разрешение на отправку кода: выполни «Adviser: Разобрать эту функцию»';
+      return vscode.l10n.t(
+        'permission to send code is needed: run "Adviser: Review This Function"',
+      );
     }
     return (await this.consent.ask(configured.destination))
       ? undefined
-      : 'отправка кода не разрешена';
+      : vscode.l10n.t('sending code is not allowed');
   }
 
   /** Другой файл, который попадает в окружение: те же правила, что и для разбираемого. */

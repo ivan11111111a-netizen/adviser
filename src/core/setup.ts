@@ -1,3 +1,5 @@
+import { untranslated, type Translate } from './i18n';
+
 /** Мастер первого запуска (этап 8, 6.9 плана): три пути к модели в этом порядке. */
 export const OPENROUTER_URL = 'https://openrouter.ai/api/v1';
 export const OLLAMA_URL = 'http://localhost:11434/v1';
@@ -18,13 +20,13 @@ export function parseModelList(body: unknown): string[] {
 }
 
 /** Ошибка в id модели OpenRouter: «автор/модель», бесплатные — с :free. undefined — всё в порядке. */
-export function checkOpenRouterModel(id: string): string | undefined {
+export function checkOpenRouterModel(id: string, t: Translate = untranslated): string | undefined {
   const value = id.trim();
   if (!value) {
-    return 'укажи модель';
+    return t('enter a model');
   }
   if (!/^[\w.-]+\/[\w.:-]+$/.test(value)) {
-    return 'id модели OpenRouter выглядит как «автор/модель», например «qwen/…:free»';
+    return t('an OpenRouter model id looks like "author/model", for example "qwen/…:free"');
   }
   return undefined;
 }

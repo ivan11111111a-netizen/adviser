@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { ru } from './ru';
 import { ADVICE_LANGUAGES, LEVELS, parseTemplate } from '../../src/core/promptBuilder';
 import {
   ANSWERS_PROMPT_VERSION,
@@ -82,6 +83,7 @@ test('отчёт: счёт, что делает изменение, каждый
       { index: 1, understood: false, feedback: 'Без него будет деление на 0.' },
     ],
     { included: ['stats.js'], skipped: ['big.js'] },
+    ru,
   );
   expect(md).toContain('Верно: 1 из 2.');
   expect(md).toContain('Не вошли (слишком длинные изменения): big.js.');

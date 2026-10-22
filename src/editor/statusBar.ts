@@ -9,35 +9,46 @@ import type { UsageTracker } from './usage';
 
 export const MENU_COMMAND = 'adviser.showMenu';
 
-const MODE_TEXT: Record<Mode, { icon: string; title: string; detail: string }> = {
-  mentor: {
-    icon: '$(mortar-board)',
-    title: 'Наставник',
-    detail: 'Сам разбирает изменённые функции: при сохранении, уходе из функции и после паузы',
-  },
-  reviewer: {
-    icon: '$(checklist)',
-    title: 'Ревьюер',
-    detail:
-      'Сам разбирает изменённые функции при сохранении и уходе из функции, не чаще 6 раз в час; сразу объяснение и решение, без намёков',
-  },
-  manual: {
-    icon: '$(eye-closed)',
-    title: 'Вручную',
-    detail: 'Только по команде «Разобрать эту функцию»',
-  },
-};
+/** Названия и описания режимов. Функция, а не константа: перевод готов только после запуска. */
+export function modeText(mode: Mode): { icon: string; title: string; detail: string } {
+  switch (mode) {
+    case 'mentor':
+      return {
+        icon: '$(mortar-board)',
+        title: vscode.l10n.t('Mentor'),
+        detail: vscode.l10n.t(
+          'Reviews changed functions on its own: on save, when you leave a function and after a pause',
+        ),
+      };
+    case 'reviewer':
+      return {
+        icon: '$(checklist)',
+        title: vscode.l10n.t('Reviewer'),
+        detail: vscode.l10n.t(
+          'Reviews changed functions on its own on save and when you leave a function, at most 6 times an hour; explanation and solution right away, no hints',
+        ),
+      };
+    case 'manual':
+      return {
+        icon: '$(eye-closed)',
+        title: vscode.l10n.t('Manual'),
+        detail: vscode.l10n.t('Only with the "Review This Function" command'),
+      };
+  }
+}
+
+const MODES: Mode[] = ['mentor', 'reviewer', 'manual'];
 
 /** Когда «Наставник» разбирает сам — по триггерам из настроек проекта. */
 function mentorDetail(triggers: Triggers) {
   const when = [
-    triggers.onSave ? 'при сохранении' : undefined,
-    triggers.onLeaveFunction ? 'при уходе из функции' : undefined,
-    triggers.pauseMs ? `после паузы ${triggers.pauseMs / 1000} с` : undefined,
+    triggers.onSave ? vscode.l10n.t('on save') : undefined,
+    triggers.onLeaveFunction ? vscode.l10n.t('when you leave a function') : undefined,
+    triggers.pauseMs ? vscode.l10n.t('after a {0} s pause', triggers.pauseMs / 1000) : undefined,
   ].filter(Boolean);
   return when.length
-    ? `Сам разбирает изменённые функции: ${when.join(', ')}`
-    : 'Триггеры выключены в настройках проекта, разбирает только по команде';
+    ? vscode.l10n.t('Reviews changed functions on its own: {0}', when.join(', '))
+    : vscode.l10n.t('Triggers are off in the project settings; reviews only on command');
 }
 
 /** Статус-бар (6.8 плана): режим, «разбираю…», число замечаний в файле, проблема; по клику — меню. */
@@ -94,13 +105,17 @@ export class StatusBar implements vscode.Disposable {
   refresh() {
     const uri = vscode.window.activeTextEditor?.document.uri;
     const settings = this.settings.get(uri);
-    const mode = MODE_TEXT[settings.mode];
+    const mode = modeText(settings.mode);
     const support = activeSupport();
     const problem = settings.configError
-      ? `исправь ${CONFIG_PATH}: ${settings.configError}`
+      ? vscode.l10n.t('fix {0}: {1}', CONFIG_PATH, settings.configError)
       : (this.problem ??
         (support
-          ? `для ${support.language} нужно расширение ${support.id}: без него Adviser не видит функций`
+          ? vscode.l10n.t(
+              '{0} needs the {1} extension: without it Adviser does not see functions',
+              support.language,
+              support.id,
+            )
           : undefined));
     const dnd = doNotDisturbUntil(this.context);
     clearTimeout(this.dndTimer);
@@ -120,16 +135,20 @@ export class StatusBar implements vscode.Disposable {
           : mode.icon;
     this.item.text = `${icon} Adviser${count ? ` ${count}` : ''}`;
     this.item.tooltip = [
-      this.busyCount ? 'Разбираю…' : undefined,
-      problem ? `Проблема: ${problem}` : undefined,
-      `Режим «${mode.title}». ${settings.mode === 'mentor' ? mentorDetail(settings.triggers) : mode.detail}.`,
+      this.busyCount ? vscode.l10n.t('Reviewing…') : undefined,
+      problem ? vscode.l10n.t('Problem: {0}', problem) : undefined,
+      vscode.l10n.t(
+        'Mode "{0}". {1}.',
+        mode.title,
+        settings.mode === 'mentor' ? mentorDetail(settings.triggers) : mode.detail,
+      ),
       settings.fromProject.length
-        ? `Из ${CONFIG_PATH}: ${settings.fromProject.join(', ')}.`
+        ? vscode.l10n.t('From {0}: {1}.', CONFIG_PATH, settings.fromProject.join(', '))
         : undefined,
-      dnd ? `Не беспокоить до ${clock(dnd)}.` : undefined,
-      count ? `Замечаний в этом файле: ${count}.` : undefined,
+      dnd ? vscode.l10n.t('Do not disturb until {0}.', clock(dnd)) : undefined,
+      count ? vscode.l10n.t('Issues in this file: {0}.', count) : undefined,
       ...this.usage.summary(),
-      'Нажми, чтобы сменить режим.',
+      vscode.l10n.t('Click to change the mode.'),
     ]
       .filter(Boolean)
       .join('\n');
@@ -165,62 +184,68 @@ export async function showMenu(
   const install: MenuItem[] = support
     ? [
         {
-          label: `$(extensions) Установить расширение для ${support.language}`,
+          label: `$(extensions) ${vscode.l10n.t('Install the extension for {0}', support.language)}`,
           description: support.id,
           run: () => vscode.commands.executeCommand('workbench.extensions.search', support.id),
         },
       ]
     : [];
   const separator: MenuItem = { label: '', kind: vscode.QuickPickItemKind.Separator };
-  const modes = (Object.keys(MODE_TEXT) as Mode[]).map((m): MenuItem => ({
-    label: `${MODE_TEXT[m].icon} ${MODE_TEXT[m].title}`,
-    description: m === mode ? 'сейчас' : undefined,
-    detail: MODE_TEXT[m].detail,
-    run: () => setMode(m),
-  }));
+  const modes = MODES.map((m): MenuItem => {
+    const text = modeText(m);
+    return {
+      label: `${text.icon} ${text.title}`,
+      description: m === mode ? vscode.l10n.t('current') : undefined,
+      detail: text.detail,
+      run: () => setMode(m),
+    };
+  });
   const quiet: MenuItem[] = dnd
     ? [
         {
-          label: '$(bell) Снова беспокоить',
-          description: `тишина до ${clock(dnd)}`,
+          label: `$(bell) ${vscode.l10n.t('Disturb again')}`,
+          description: vscode.l10n.t('quiet until {0}', clock(dnd)),
           run: () => autopilot.doNotDisturb(undefined),
         },
       ]
     : [
-        { label: '$(bell-slash) Не беспокоить 30 минут', run: () => autopilot.doNotDisturb(30) },
-        { label: '$(bell-slash) Не беспокоить 1 час', run: () => autopilot.doNotDisturb(60) },
+        {
+          label: `$(bell-slash) ${vscode.l10n.t('Do not disturb for 30 minutes')}`,
+          run: () => autopilot.doNotDisturb(30),
+        },
+        {
+          label: `$(bell-slash) ${vscode.l10n.t('Do not disturb for 1 hour')}`,
+          run: () => autopilot.doNotDisturb(60),
+        },
       ];
+  const command = (icon: string, label: string, id: string): MenuItem => ({
+    label: `${icon} ${label}`,
+    run: () => vscode.commands.executeCommand(id),
+  });
   const picked = await vscode.window.showQuickPick<MenuItem>(
     [
       ...install,
-      {
-        label: '$(play) Разобрать эту функцию',
-        run: () => vscode.commands.executeCommand('adviser.reviewFunction'),
-      },
-      {
-        label: '$(book) Журнал ошибок',
-        run: () => vscode.commands.executeCommand('adviser.journal.focus'),
-      },
-      {
-        label: '$(graph) Отчёт за неделю',
-        run: () => vscode.commands.executeCommand('adviser.weeklyReport'),
-      },
-      {
-        label: '$(mortar-board) Упражнение на частую ошибку',
-        run: () => vscode.commands.executeCommand('adviser.exercise'),
-      },
-      {
-        label: '$(git-compare) Понимаю ли я изменения',
-        run: () => vscode.commands.executeCommand('adviser.understandChanges'),
-      },
+      command('$(play)', vscode.l10n.t('Review This Function'), 'adviser.reviewFunction'),
+      command('$(book)', vscode.l10n.t('Mistake journal'), 'adviser.journal.focus'),
+      command('$(graph)', vscode.l10n.t('Weekly Report'), 'adviser.weeklyReport'),
+      command('$(mortar-board)', vscode.l10n.t('Practice a Frequent Mistake'), 'adviser.exercise'),
+      command(
+        '$(git-compare)',
+        vscode.l10n.t('Do I Understand the Changes'),
+        'adviser.understandChanges',
+      ),
       separator,
       ...modes,
       separator,
       ...quiet,
-      { label: '$(output) Лог', description: 'Output → Adviser', run: () => log.show() },
       {
-        label: '$(rocket) Начало работы',
-        description: 'модель, уровень, пробный разбор',
+        label: `$(output) ${vscode.l10n.t('Log')}`,
+        description: 'Output → Adviser',
+        run: () => log.show(),
+      },
+      {
+        label: `$(rocket) ${vscode.l10n.t('Get Started')}`,
+        description: vscode.l10n.t('model, level, trial review'),
         run: () => vscode.commands.executeCommand('adviser.openWalkthrough'),
       },
     ],

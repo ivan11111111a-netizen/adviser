@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { ru } from './ru';
 import {
   addUsage,
   budgetExceeded,
@@ -43,9 +44,9 @@ test('costUsd и budgetExceeded', () => {
   const log = addUsage({}, at(10, 20), usage);
   expect(budgetExceeded(log, at(10, 20), paid)).toBeUndefined();
   const more = addUsage(log, at(10, 20), usage);
-  expect(budgetExceeded(more, at(10, 20), paid)).toBe('дневной лимит $0.05 исчерпан');
+  expect(budgetExceeded(more, at(10, 20), paid, ru)).toBe('дневной лимит $0.05 исчерпан');
   expect(budgetExceeded(more, at(10, 21), paid)).toBeUndefined();
-  expect(budgetExceeded(more, at(10, 21), { ...paid, monthlyUsd: 0.08 })).toBe(
+  expect(budgetExceeded(more, at(10, 21), { ...paid, monthlyUsd: 0.08 }, ru)).toBe(
     'месячный лимит $0.08 исчерпан',
   );
   expect(budgetExceeded(more, at(10, 20), free)).toBeUndefined();
@@ -53,6 +54,6 @@ test('costUsd и budgetExceeded', () => {
 
 test('formatUsage: деньги — только с ценами', () => {
   const day = { inputTokens: 11_000, outputTokens: 1500, requests: 3 };
-  expect(formatUsage(day, free)).toBe('запросов: 3, токенов: 12,5 тыс.');
-  expect(formatUsage(day, paid)).toBe('запросов: 3, токенов: 12,5 тыс., $0.04');
+  expect(formatUsage(day, free, ru)).toBe('запросов: 3, токенов: 12,5 тыс.');
+  expect(formatUsage(day, paid, ru)).toBe('запросов: 3, токенов: 12,5 тыс., $0.04');
 });

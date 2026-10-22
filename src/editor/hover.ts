@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { diagnosticText, hoverView, shortQuote, type Step } from '../core/disclosure';
 import { REMIND_FROM, repeatsOf, solutionDelayActive, solutionWait } from '../core/journal';
-import { plural } from '../core/plural';
+import { pluralForm } from '../core/i18n';
 import type { Finding, Findings } from './findings';
 import type { Journal } from './journal';
 import { NOTEBOOK_CELL_SCHEME, ownerUri } from './settings';
@@ -26,7 +26,8 @@ export interface CaseArgs {
   line: number;
 }
 
-const LABEL: Record<Exclude<Step, 1>, string> = { 2: 'Объяснить', 3: 'Показать решение' };
+const label = (step: Exclude<Step, 1>) =>
+  step === 2 ? vscode.l10n.t('Explain') : vscode.l10n.t('Show solution');
 
 const link = (label: string, command: string, args: unknown) =>
   `[${label}](command:${command}?${encodeURIComponent(JSON.stringify([args]))})`;
@@ -58,44 +59,51 @@ export function hoverProvider(findings: Findings, journal: Journal): vscode.Hove
         const repeats = entry ? repeatsOf(journal.all(), entry) : { count: 0 };
         if (repeats.count >= REMIND_FROM && repeats.last) {
           const { file, line } = repeats.last;
+          const times = pluralForm(repeats.count, vscode.l10n.t('time|times'));
           md.appendMarkdown(
-            `_Ты так уже делал ${repeats.count} ${plural(repeats.count, 'раз', 'раза', 'раз')} на этой неделе._ ` +
-              `${link('Прошлый случай', OPEN_CASE_COMMAND, { file, line } satisfies CaseArgs)}\n\n`,
+            `${vscode.l10n.t('_You have made this mistake {0} {1} this week._', repeats.count, times)} ` +
+              `${link(vscode.l10n.t('Previous case'), OPEN_CASE_COMMAND, { file, line } satisfies CaseArgs)}\n\n`,
           );
         }
         if (finding.check) {
           const { answer, understood, feedback } = finding.check;
-          md.appendMarkdown('**Твой ответ:** _');
+          md.appendMarkdown(`${vscode.l10n.t('**Your answer:**')} _`);
           md.appendText(shortQuote(answer, 200));
           // Отзыв модели обычно сам начинается с «Верно», поэтому у верного ответа — только значок.
-          md.appendMarkdown(`_\n\n${understood ? '✓' : '**Пока не то.**'} ${feedback}\n\n`);
+          md.appendMarkdown(
+            `_\n\n${understood ? '✓' : vscode.l10n.t('**Not quite.**')} ${feedback}\n\n`,
+          );
         }
         if (view.explanation) {
-          md.appendMarkdown(`**Почему.** ${view.explanation}\n\n`);
+          md.appendMarkdown(`${vscode.l10n.t('**Why.**')} ${view.explanation}\n\n`);
         }
         if (view.example) {
-          md.appendMarkdown('**Пример.**\n');
+          md.appendMarkdown(`${vscode.l10n.t('**Example.**')}\n`);
           md.appendCodeblock(view.example, languageId);
         }
         if (view.readMore) {
-          md.appendMarkdown(`[Подробнее](${view.readMore})\n\n`);
+          md.appendMarkdown(`[${vscode.l10n.t('Read more')}](${view.readMore})\n\n`);
         }
         if (view.fix) {
-          md.appendMarkdown(`**Решение.** ${view.fix.description}\n`);
+          md.appendMarkdown(`${vscode.l10n.t('**Solution.**')} ${view.fix.description}\n`);
           md.appendCodeblock(view.fix.code, languageId);
         }
         const wait = solutionWaitFor(journal, finding);
         const buttons = view.actions.map((step) =>
           step === 3 && wait > 0
-            ? `_решение — через ${Math.ceil(wait / 1000)} с: попробуй сначала сам_`
-            : link(LABEL[step], REVEAL_COMMAND, { id: finding.id, step } satisfies RevealArgs),
+            ? vscode.l10n.t('_solution in {0} s: try it yourself first_', Math.ceil(wait / 1000))
+            : link(label(step), REVEAL_COMMAND, { id: finding.id, step } satisfies RevealArgs),
         );
         // Объяснить самому можно, пока видишь только намёк.
         if (view.actions.includes(2)) {
           buttons.unshift(
-            link(finding.check ? 'Ответить ещё раз' : 'Проверь меня', CHECK_COMMAND, {
-              id: finding.id,
-            } satisfies CheckArgs),
+            link(
+              finding.check ? vscode.l10n.t('Answer again') : vscode.l10n.t('Check me'),
+              CHECK_COMMAND,
+              {
+                id: finding.id,
+              } satisfies CheckArgs,
+            ),
           );
         }
         if (buttons.length) {
@@ -141,7 +149,10 @@ export async function openCase(log: vscode.LogOutputChannel, args?: CaseArgs) {
   } catch (e) {
     // Файл удалили или переименовали, а несохранённый Untitled закрыли.
     log.info(`прошлый случай не открыт: ${String(e)}`);
-    vscode.window.setStatusBarMessage('Adviser: файла с прошлым случаем больше нет', 6000);
+    vscode.window.setStatusBarMessage(
+      vscode.l10n.t('Adviser: the file with the previous case is gone'),
+      6000,
+    );
     return;
   }
   const line = Math.min(args.line, doc.lineCount - 1);
@@ -160,7 +171,7 @@ export async function revealStep(
   if (args?.step === 3 && wait > 0) {
     // Ссылка из старой подсказки: пауза ещё не прошла.
     vscode.window.setStatusBarMessage(
-      `Adviser: решение — через ${Math.ceil(wait / 1000)} с, попробуй сначала сам`,
+      vscode.l10n.t('Adviser: solution in {0} s, try it yourself first', Math.ceil(wait / 1000)),
       6000,
     );
     return;

@@ -33,7 +33,7 @@ export async function createProvider(
   switch (kind) {
     case 'openai-compatible': {
       if (!model) {
-        return 'укажи модель в настройке adviser.model';
+        return vscode.l10n.t('set the model in the adviser.model setting');
       }
       const baseURL = config.get<string>('baseUrl', 'https://openrouter.ai/api/v1');
       return {
@@ -61,7 +61,7 @@ export async function createProvider(
     case 'claude-code':
       // Подписку Claude можно использовать только как разработчик: правила Anthropic.
       if (!fromSources) {
-        return 'провайдер claude-code работает только при запуске из исходников (F5)';
+        return vscode.l10n.t('the claude-code provider works only when run from sources (F5)');
       }
       return {
         id: `${kind} ${model || 'sonnet'}`,
@@ -72,11 +72,11 @@ export async function createProvider(
       };
     case 'mock':
       if (!fromSources) {
-        return 'провайдер mock работает только при запуске из исходников и в тестах';
+        return vscode.l10n.t('the mock provider works only when run from sources and in tests');
       }
       return { id: kind, provider: mockProvider };
     default:
-      return `неизвестный провайдер «${kind}» в adviser.provider`;
+      return vscode.l10n.t('unknown provider "{0}" in adviser.provider', kind);
   }
 }
 
@@ -100,8 +100,8 @@ export function createFallbackProvider(): ConfiguredProvider | undefined {
 
 export async function setApiKey(context: vscode.ExtensionContext) {
   const key = await vscode.window.showInputBox({
-    title: 'Adviser: API-ключ',
-    prompt: 'Хранится в SecretStorage VS Code. Пустое значение удаляет ключ.',
+    title: vscode.l10n.t('Adviser: API key'),
+    prompt: vscode.l10n.t('Stored in VS Code SecretStorage. An empty value deletes the key.'),
     password: true,
     ignoreFocusOut: true,
   });
@@ -114,7 +114,9 @@ export async function setApiKey(context: vscode.ExtensionContext) {
     await context.secrets.delete(API_KEY_SECRET);
   }
   vscode.window.setStatusBarMessage(
-    key.trim() ? 'Adviser: ключ сохранён' : 'Adviser: ключ удалён',
+    key.trim()
+      ? vscode.l10n.t('Adviser: the key is saved')
+      : vscode.l10n.t('Adviser: the key is deleted'),
     4000,
   );
 }

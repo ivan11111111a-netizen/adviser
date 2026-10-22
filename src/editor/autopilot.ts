@@ -446,7 +446,9 @@ export class Autopilot implements vscode.Disposable {
         const delay = retryDelay(++this.failures);
         this.retryAt = now + delay;
         this.queue = [];
-        this.status.setProblem(`не получилось разобрать, повторю в ${clock(this.retryAt)}`);
+        this.status.setProblem(
+          vscode.l10n.t('the review failed, will retry at {0}', clock(this.retryAt)),
+        );
         clearTimeout(this.retryTimer);
         this.retryTimer = setTimeout(() => {
           const doc = vscode.window.activeTextEditor?.document;

@@ -4,7 +4,7 @@ import { diagnosticText, shortQuote } from '../core/disclosure';
 import { disagreements, OFFER_HIDE_AFTER } from '../core/journal';
 import type { Pattern } from '../core/patterns';
 import type { Issue } from '../core/reviewSchema';
-import { plural } from '../core/plural';
+import { pluralForm } from '../core/i18n';
 import { patternTitle } from './bundled';
 import type { Findings } from './findings';
 import type { Journal } from './journal';
@@ -35,7 +35,7 @@ export function feedbackActions(
         // Несколько замечаний в одном месте — подписываем, к какому относится действие.
         const quote =
           here.length > 1
-            ? ` («${shortQuote(diagnosticText(issue, finding.presentation), 40)}»)`
+            ? ` ${vscode.l10n.t('("{0}")', shortQuote(diagnosticText(issue, finding.presentation), 40))}`
             : '';
         const diagnostics = context.diagnostics.filter(
           (d) => d.source === 'Adviser' && d.code === issue.patternId,
@@ -53,16 +53,16 @@ export function feedbackActions(
             : [];
         return [
           ...apply,
-          action(`Adviser: понял${quote}`, FEEDBACK_COMMAND, {
+          action(`${vscode.l10n.t('Adviser: got it')}${quote}`, FEEDBACK_COMMAND, {
             id: finding.id,
             kind: 'understood',
           }),
-          action(`Adviser: не согласен${quote}`, FEEDBACK_COMMAND, {
+          action(`${vscode.l10n.t('Adviser: I disagree')}${quote}`, FEEDBACK_COMMAND, {
             id: finding.id,
             kind: 'disagree',
           }),
           action(
-            `Adviser: больше не показывать «${patternTitle(patterns, issue.patternId)}»`,
+            vscode.l10n.t('Adviser: stop showing "{0}"', patternTitle(patterns, issue.patternId)),
             HIDE_PATTERN_COMMAND,
             { patternId: issue.patternId },
           ),
@@ -83,7 +83,7 @@ function applyFix(
   quote: string,
   diagnostics: vscode.Diagnostic[],
 ): vscode.CodeAction {
-  const title = `Adviser: применить решение${quote}`;
+  const title = `${vscode.l10n.t('Adviser: apply the solution')}${quote}`;
   const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
   const lines = new vscode.Range(
     range.start.line,
@@ -128,12 +128,18 @@ export class Feedback {
       return;
     }
     const title = patternTitle(this.patterns, patternId);
+    const hide = vscode.l10n.t('Stop showing');
     const answer = await vscode.window.showInformationMessage(
-      `Ты уже ${n} ${plural(n, 'раз', 'раза', 'раз')} не согласен с замечаниями «${title}». Больше их не показывать?`,
-      'Не показывать',
-      'Оставить',
+      vscode.l10n.t(
+        'You have disagreed with "{2}" issues {0} {1}. Stop showing them?',
+        n,
+        pluralForm(n, vscode.l10n.t('time|times')),
+        title,
+      ),
+      hide,
+      vscode.l10n.t('Keep'),
     );
-    if (answer === 'Не показывать') {
+    if (answer === hide) {
       await this.hidePattern({ patternId });
     }
   }
@@ -155,7 +161,10 @@ export class Feedback {
     this.findings.hidePattern(args.patternId);
     this.log.info(`${args.patternId}: больше не показывать`);
     this.status.flash(
-      `больше не покажу «${patternTitle(this.patterns, args.patternId)}». Вернуть — настройка adviser.hiddenPatterns`,
+      vscode.l10n.t(
+        'will not show "{0}" any more. To bring it back: the adviser.hiddenPatterns setting',
+        patternTitle(this.patterns, args.patternId),
+      ),
     );
   }
 }

@@ -38,6 +38,8 @@
 
 ![Мастер первого запуска](docs/images/walkthrough.png)
 
+Интерфейс — на языке VS Code: русский или английский. Язык советов задаётся отдельно (`adviser.language`).
+
 Нужен VS Code 1.101 или новее. Cursor и Windsurf должны подойти — версия выбрана ради них, — но в них Adviser ещё не проверяли. Сам Adviser разбирает JavaScript, TypeScript, Python, C, C++ и Java — в файлах и в ячейках ноутбуков Jupyter, по команде — любой язык. Для Python, C, C++ и Java нужно расширение языка, которое знает границы функций; если его нет, статус-бар подскажет, какое поставить.
 
 ## Кто разбирает код
@@ -115,6 +117,12 @@ npm run package:vsix      # собрать .vsix
 ```
 
 Запуск расширения — F5 в VS Code (Extension Development Host).
+
+Строки интерфейса пишутся по-английски через `vscode.l10n.t`, русский перевод лежит в `l10n/bundle.l10n.ru.json`, а для `package.json` — в `package.nls.json` и `package.nls.ru.json`. Тест `test/unit/l10n.test.ts` следит, чтобы у каждой строки был перевод. Интеграционные тесты идут в русском VS Code (`--locale ru`) с русским языковым пакетом, `@vscode/test-cli` ставит его сам. На Windows в пути с пробелом он ставит пакет не туда, поэтому там пакет ставится один раз руками:
+
+```sh
+.vscode-test/vscode-win32-x64-archive-<версия>/bin/code --extensions-dir .vscode-test/extensions --user-data-dir .vscode-test/user-data --install-extension ms-ceintl.vscode-language-pack-ru
+```
 
 ## Лицензия
 

@@ -9,8 +9,8 @@ import {
   type JournalEntry,
 } from '../core/journal';
 import type { Pattern } from '../core/patterns';
-import { plural } from '../core/plural';
-import { patternTitle } from './bundled';
+import { pluralForm } from '../core/i18n';
+import { patternTitle, translate, uiLanguage } from './bundled';
 import { OPEN_CASE_COMMAND, type CaseArgs } from './hover';
 import type { Journal } from './journal';
 import { currentLevel } from './mode';
@@ -26,25 +26,28 @@ type Node =
   | { kind: 'pattern'; patternId: string; count: number }
   | { kind: 'case'; entry: JournalEntry };
 
-const GROUPS: Record<Group, { label: string; icon: string; tooltip: string }> = {
-  frequent: {
-    label: 'Частые ошибки за три недели',
-    icon: 'flame',
-    tooltip: 'Типы ошибок, которые встречались за последние три недели, — чаще выше',
-  },
-  mastered: {
-    label: 'Освоено',
-    icon: 'pass',
-    tooltip: 'Встречались хотя бы дважды и не повторялись три недели',
-  },
-};
+function groupText(group: Group): { label: string; icon: string; tooltip: string } {
+  return group === 'frequent'
+    ? {
+        label: vscode.l10n.t('Frequent mistakes in three weeks'),
+        icon: 'flame',
+        tooltip: vscode.l10n.t('Mistake types from the last three weeks, the most frequent first'),
+      }
+    : {
+        label: vscode.l10n.t('Mastered'),
+        icon: 'pass',
+        tooltip: vscode.l10n.t('Happened at least twice and have not come back for three weeks'),
+      };
+}
 
 function ago(at: number, now: number) {
   const days = daysAgo(at, now);
   if (days === 0) {
-    return 'сегодня';
+    return vscode.l10n.t('today');
   }
-  return days === 1 ? 'вчера' : `${days} ${plural(days, 'день', 'дня', 'дней')} назад`;
+  return days === 1
+    ? vscode.l10n.t('yesterday')
+    : vscode.l10n.t('{0} {1} ago', days, pluralForm(days, vscode.l10n.t('day|days')));
 }
 
 /** Боковая панель «Журнал ошибок» (6.6 плана): неделя, частые ошибки с их случаями, освоенное. */
@@ -97,18 +100,22 @@ export class JournalView implements vscode.TreeDataProvider<Node>, vscode.Dispos
       case 'week': {
         const report = weeklyReport(this.journal.all(), now);
         const item = new vscode.TreeItem(
-          `Неделя: ${report.total} ${plural(report.total, 'замечание', 'замечания', 'замечаний')}`,
+          vscode.l10n.t(
+            'Week: {0} {1}',
+            report.total,
+            pluralForm(report.total, vscode.l10n.t('issue|issues')),
+          ),
         );
         item.description = report.resolved
-          ? `сам исправил ${report.selfSolved} из ${report.resolved}`
+          ? vscode.l10n.t('fixed {0} of {1} on your own', report.selfSolved, report.resolved)
           : undefined;
-        item.tooltip = 'Открыть недельный отчёт';
+        item.tooltip = vscode.l10n.t('Open the weekly report');
         item.iconPath = new vscode.ThemeIcon('calendar');
-        item.command = { command: REPORT_COMMAND, title: 'Отчёт за неделю' };
+        item.command = { command: REPORT_COMMAND, title: vscode.l10n.t('Weekly Report') };
         return item;
       }
       case 'group': {
-        const { label, icon, tooltip } = GROUPS[node.group];
+        const { label, icon, tooltip } = groupText(node.group);
         const count = this.patternsOf(node.group, now).length;
         const item = new vscode.TreeItem(
           label,
@@ -118,7 +125,7 @@ export class JournalView implements vscode.TreeDataProvider<Node>, vscode.Dispos
               ? vscode.TreeItemCollapsibleState.Expanded
               : vscode.TreeItemCollapsibleState.Collapsed,
         );
-        item.description = count ? undefined : 'пока нет';
+        item.description = count ? undefined : vscode.l10n.t('none yet');
         item.tooltip = tooltip;
         item.iconPath = new vscode.ThemeIcon(icon);
         return item;
@@ -142,8 +149,8 @@ export class JournalView implements vscode.TreeDataProvider<Node>, vscode.Dispos
           entry.resolvedAt === undefined
             ? undefined
             : entry.step < 3
-              ? 'исправил сам'
-              : 'исправлено',
+              ? vscode.l10n.t('fixed on your own')
+              : vscode.l10n.t('fixed'),
         ]
           .filter(Boolean)
           .join(' · ');
@@ -152,7 +159,11 @@ export class JournalView implements vscode.TreeDataProvider<Node>, vscode.Dispos
           entry.resolvedAt === undefined ? 'circle-large-outline' : 'pass',
         );
         const args: CaseArgs = { file: entry.file, line: entry.line };
-        item.command = { command: OPEN_CASE_COMMAND, title: 'Открыть', arguments: [args] };
+        item.command = {
+          command: OPEN_CASE_COMMAND,
+          title: vscode.l10n.t('Open'),
+          arguments: [args],
+        };
         return item;
       }
     }
@@ -179,9 +190,14 @@ export async function showWeeklyReport(
 ) {
   const text = renderReport(weeklyReport(journal.all(), Date.now()), {
     title: (id) => patternTitle(patterns, id),
-    // Интерфейс пока только русский, и даты тоже: иначе выйдет «неделя с October 13».
-    day: (t) => new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }),
+    // Даты — на языке интерфейса, как и текст: иначе выйдет «неделя с October 13».
+    day: (time) =>
+      new Date(time).toLocaleDateString(uiLanguage() === 'ru' ? 'ru-RU' : 'en-US', {
+        day: 'numeric',
+        month: 'long',
+      }),
     level: currentLevel(),
+    t: translate,
   });
   const file = vscode.Uri.joinPath(context.globalStorageUri, 'report.md');
   await vscode.workspace.fs.createDirectory(context.globalStorageUri);

@@ -17,8 +17,10 @@ export async function createCopilotProvider(
   const model = models[0];
   if (!model) {
     return family
-      ? `у Copilot нет модели «${family}»: очисти adviser.model или выбери другую`
-      : 'нет моделей GitHub Copilot: поставь расширение GitHub Copilot и войди в GitHub (в Cursor они недоступны)';
+      ? vscode.l10n.t('Copilot has no "{0}" model: clear adviser.model or pick another one', family)
+      : vscode.l10n.t(
+          'no GitHub Copilot models: install the GitHub Copilot extension and sign in to GitHub (they are not available in Cursor)',
+        );
   }
   return {
     model: model.family,
@@ -36,7 +38,7 @@ export async function createCopilotProvider(
         try {
           const response = await model.sendRequest(
             messages,
-            { justification: 'Adviser разбирает функцию, которую ты изменил' },
+            { justification: vscode.l10n.t('Adviser reviews the function you changed') },
             cancel.token,
           );
           for await (const part of response.text) {
@@ -59,9 +61,11 @@ export async function createCopilotProvider(
 export async function setupCopilot() {
   const models = await vscode.lm.selectChatModels({ vendor: 'copilot' });
   if (!models.length) {
-    const install = 'Найти GitHub Copilot';
+    const install = vscode.l10n.t('Find GitHub Copilot');
     const answer = await vscode.window.showWarningMessage(
-      'Моделей GitHub Copilot нет. Поставь расширение GitHub Copilot и войди в GitHub. Студентам Copilot бывает бесплатным через GitHub Education. В Cursor этот путь не работает.',
+      vscode.l10n.t(
+        'There are no GitHub Copilot models. Install the GitHub Copilot extension and sign in to GitHub. Students can get Copilot for free through GitHub Education. This path does not work in Cursor.',
+      ),
       install,
     );
     if (answer === install) {
@@ -75,7 +79,10 @@ export async function setupCopilot() {
       label: family,
       description: models.find((m) => m.family === family)?.name,
     })),
-    { title: 'Adviser: модель Copilot', placeHolder: 'Какой моделью разбирать код' },
+    {
+      title: vscode.l10n.t('Adviser: Copilot model'),
+      placeHolder: vscode.l10n.t('Which model should review the code'),
+    },
   );
   if (!picked) {
     return;
@@ -83,5 +90,8 @@ export async function setupCopilot() {
   const config = vscode.workspace.getConfiguration('adviser');
   await config.update('provider', 'copilot', vscode.ConfigurationTarget.Global);
   await config.update('model', picked.label, vscode.ConfigurationTarget.Global);
-  vscode.window.setStatusBarMessage(`Adviser: разбирает ${picked.label} через Copilot`, 6000);
+  vscode.window.setStatusBarMessage(
+    vscode.l10n.t('Adviser: {0} reviews through Copilot', picked.label),
+    6000,
+  );
 }

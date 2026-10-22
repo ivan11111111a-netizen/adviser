@@ -1,4 +1,5 @@
 import type { Usage } from './engine';
+import { untranslated, type Translate } from './i18n';
 
 /** Расход за день: токены и число запросов к модели. */
 export interface DayUsage extends Usage {
@@ -65,22 +66,29 @@ export function costUsd(usage: Usage, budget: Budget): number {
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 /** Почему разборы на паузе из-за денег; undefined — лимиты не заданы или не исчерпаны. */
-export function budgetExceeded(log: UsageLog, now: number, budget: Budget): string | undefined {
+export function budgetExceeded(
+  log: UsageLog,
+  now: number,
+  budget: Budget,
+  t: Translate = untranslated,
+): string | undefined {
   const { today, month } = usageTotals(log, now);
   if (budget.dailyUsd > 0 && costUsd(today, budget) >= budget.dailyUsd) {
-    return `дневной лимит ${usd(budget.dailyUsd)} исчерпан`;
+    return t('daily limit of {0} reached', usd(budget.dailyUsd));
   }
   if (budget.monthlyUsd > 0 && costUsd(month, budget) >= budget.monthlyUsd) {
-    return `месячный лимит ${usd(budget.monthlyUsd)} исчерпан`;
+    return t('monthly limit of {0} reached', usd(budget.monthlyUsd));
   }
   return undefined;
 }
 
-/** «3 запроса, 12,5 тыс. токенов, $0.02»: деньги — только если заданы цены. */
-export function formatUsage(day: DayUsage, budget: Budget): string {
+/** «requests: 3, tokens: 12.5k, $0.02»: деньги — только если заданы цены. */
+export function formatUsage(day: DayUsage, budget: Budget, t: Translate = untranslated): string {
   const tokens = day.inputTokens + day.outputTokens;
-  const amount =
-    tokens >= 1000 ? `${(tokens / 1000).toFixed(1).replace('.', ',')} тыс.` : String(tokens);
+  // Целая и дробная часть отдельно: десятичный знак у языков разный («12.5k», «12,5 тыс.»).
+  const [whole, fraction] = (tokens / 1000).toFixed(1).split('.');
+  const amount = tokens >= 1000 ? t('{0}.{1}k', whole, fraction) : String(tokens);
   const priced = budget.inputPerMillion > 0 || budget.outputPerMillion > 0;
-  return `запросов: ${day.requests}, токенов: ${amount}${priced ? `, ${usd(costUsd(day, budget))}` : ''}`;
+  const cost = priced ? `, ${usd(costUsd(day, budget))}` : '';
+  return t('requests: {0}, tokens: {1}', day.requests, amount) + cost;
 }
