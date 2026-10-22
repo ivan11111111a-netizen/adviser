@@ -8,6 +8,7 @@ import { cacheKey, LruCache } from '../core/cache';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
 import { runReview } from '../core/engine';
+import { hintLeak } from '../core/hintGuard';
 import { normalizePatternIds, patternsFor } from '../core/patterns';
 import {
   buildPrompt,
@@ -188,11 +189,23 @@ export class Reviewer {
       return { kind: 'failed', error: result.error, invalid: result.invalid };
     }
 
-    const { review, unknown } = normalizePatternIds(result.review, patterns);
-    if (unknown.length) {
+    const normalized = normalizePatternIds(result.review, patterns);
+    if (normalized.unknown.length) {
       // Повод дополнить patterns/patterns.json.
-      this.log.info(`patternId не из списка, записаны как other: ${unknown.join(', ')}`);
+      this.log.info(`patternId не из списка, записаны как other: ${normalized.unknown.join(', ')}`);
     }
+    // Намёк, который называет новое из решения, выдаёт ответ: убираем — сразу объяснение.
+    const review = {
+      ...normalized.review,
+      issues: normalized.review.issues.map((issue) => {
+        const leak = hintLeak(issue.hint, issue.fix.code, code);
+        if (!leak) {
+          return issue;
+        }
+        this.log.info(`${issue.patternId}: намёк выдавал ответ («${leak}»), показываю объяснение`);
+        return { ...issue, hint: '' };
+      }),
+    };
     const { issues, summary } = review;
     const tokens = spent.inputTokens
       ? `, токенов ${spent.inputTokens} → ${spent.outputTokens}`

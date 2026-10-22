@@ -18,19 +18,19 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
 
 describe('первая ступень', () => {
   test('warning и suggestion начинаются с намёка', () => {
-    expect(firstStep('warning')).toBe(1);
-    expect(firstStep('suggestion')).toBe(1);
+    expect(firstStep(issue())).toBe(1);
+    expect(firstStep(issue({ severity: 'suggestion' }))).toBe(1);
     expect(diagnosticText(issue())).toBe(issue().hint);
   });
 
   test('critical пропускает намёк: в подчёркивании сразу объяснение', () => {
-    expect(firstStep('critical')).toBe(2);
+    expect(firstStep(issue({ severity: 'critical' }))).toBe(2);
     expect(diagnosticText(issue({ severity: 'critical' }))).toBe(issue().explanation);
   });
 });
 
 test('ревьюер: всё сразу — объяснение в подчёркивании, решение в hover, кнопок нет', () => {
-  expect(firstStep('suggestion', 'reviewer')).toBe(3);
+  expect(firstStep(issue({ severity: 'suggestion' }), 'reviewer')).toBe(3);
   expect(diagnosticText(issue(), 'reviewer')).toBe(issue().explanation);
   expect(hoverView(issue(), 1, 'reviewer')).toEqual({
     explanation: undefined,
@@ -38,6 +38,13 @@ test('ревьюер: всё сразу — объяснение в подчёр
     fix: issue().fix,
     actions: [],
   });
+});
+
+test('пустой намёк (убрал фильтр утечек) — как у critical: сразу объяснение', () => {
+  const noHint = issue({ hint: ' ' });
+  expect(firstStep(noHint)).toBe(2);
+  expect(diagnosticText(noHint)).toBe(noHint.explanation);
+  expect(hoverView(noHint, 1).explanation).toBeUndefined();
 });
 
 test('ступени не закрываются обратно', () => {

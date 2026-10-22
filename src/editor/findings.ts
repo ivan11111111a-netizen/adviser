@@ -75,7 +75,7 @@ export class Findings implements vscode.Disposable {
     const now = Date.now();
     const added = findings.map((f, i): Finding => {
       const before = matched[i];
-      const step = reveal(before?.step ?? 1, firstStep(f.issue.severity, f.presentation));
+      const step = reveal(before?.step ?? 1, firstStep(f.issue, f.presentation));
       // На случай уже ответили «понял» или «не согласен» — новый разбор его не возвращает.
       const answered = before !== undefined && this.journal.get(before.id)?.feedback !== undefined;
       const finding = {

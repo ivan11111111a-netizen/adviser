@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { MIN_CONFIDENCE, runReview, type Provider } from '../src/core/engine';
+import { hintLeak } from '../src/core/hintGuard';
 import { normalizePatternIds, parsePatterns, patternsFor } from '../src/core/patterns';
 import {
   ADVICE_LANGUAGES,
@@ -137,8 +138,12 @@ async function review(): Promise<RunRecord> {
     const started = Date.now();
     const result = await runReview(provider, request);
     const seconds = (Date.now() - started) / 1000;
+    const code = read('evals', 'cases', evalCase.file);
+    // Как в расширении: намёк, который называет новое из решения, убирается (src/core/hintGuard.ts).
     const issues = result.ok
-      ? normalizePatternIds(result.review, patterns).review.issues
+      ? normalizePatternIds(result.review, patterns).review.issues.map((issue) =>
+          hintLeak(issue.hint, issue.fix.code, code) ? { ...issue, hint: '' } : issue,
+        )
       : undefined;
     record.results.push({
       file: evalCase.file,

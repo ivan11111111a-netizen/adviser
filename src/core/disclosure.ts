@@ -1,4 +1,4 @@
-import type { Issue, Severity } from './reviewSchema';
+import type { Issue } from './reviewSchema';
 
 /** Ступени раскрытия (6.5 плана): 1 — намёк, 2 — объяснение, 3 — код. */
 export type Step = 1 | 2 | 3;
@@ -10,14 +10,21 @@ export type Step = 1 | 2 | 3;
 export type Presentation = 'mentor' | 'reviewer';
 
 /**
- * Какую ступень видно сразу. Для critical намёк неуместен: код сломан, поэтому сразу объясняем.
- * Ревьюеру — всё сразу.
+ * Есть ли намёк. У critical он неуместен — код сломан. Пустой намёк — его убрал фильтр утечек
+ * (hintGuard) или модель его не дала.
  */
-export function firstStep(severity: Severity, presentation: Presentation = 'mentor'): Step {
+export const hasHint = (issue: Pick<Issue, 'severity' | 'hint'>) =>
+  issue.severity !== 'critical' && issue.hint.trim() !== '';
+
+/** Какую ступень видно сразу: без намёка — объяснение, ревьюеру — всё сразу. */
+export function firstStep(
+  issue: Pick<Issue, 'severity' | 'hint'>,
+  presentation: Presentation = 'mentor',
+): Step {
   if (presentation === 'reviewer') {
     return 3;
   }
-  return severity === 'critical' ? 2 : 1;
+  return hasHint(issue) ? 1 : 2;
 }
 
 /** Ступени только открываются: «Объяснить» после показанного решения ничего не прячет. */
@@ -30,9 +37,7 @@ export function reveal(current: Step, requested: Step): Step {
  * объяснение.
  */
 export function diagnosticText(issue: Issue, presentation: Presentation = 'mentor'): string {
-  return presentation === 'mentor' && issue.severity !== 'critical'
-    ? issue.hint
-    : issue.explanation;
+  return presentation === 'mentor' && hasHint(issue) ? issue.hint : issue.explanation;
 }
 
 export interface HoverView {
@@ -51,7 +56,7 @@ export function hoverView(
   step: Step,
   presentation: Presentation = 'mentor',
 ): HoverView {
-  const shown = Math.max(step, firstStep(issue.severity, presentation)) as Step;
+  const shown = Math.max(step, firstStep(issue, presentation)) as Step;
   const inUnderline = diagnosticText(issue, presentation) === issue.explanation;
   return {
     explanation: shown >= 2 && !inUnderline ? issue.explanation : undefined,
