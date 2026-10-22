@@ -263,6 +263,18 @@
           "scope": "machine",
           "markdownDescription": "Лимит расходов в месяц, $. 0 — без лимита."
         },
+        "adviser.budget.fallbackModel": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Когда лимит исчерпан, разбирать этой моделью на своём компьютере (например, `qwen2.5-coder:7b` в Ollama). Пусто — разборы на паузе до нового дня или месяца."
+        },
+        "adviser.budget.fallbackBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:11434/v1",
+          "scope": "machine",
+          "markdownDescription": "Адрес запасной модели. Только сервер на этом компьютере (`localhost`): запасной путь бесплатный, и код не уходит в сеть."
+        },
         "adviser.provider": {
           "type": "string",
           "enum": [

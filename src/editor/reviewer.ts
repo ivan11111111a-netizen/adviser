@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
-import { createProvider } from '../config/provider';
+import {
+  createFallbackProvider,
+  createProvider,
+  type ConfiguredProvider,
+} from '../config/provider';
 import { cacheKey, LruCache } from '../core/cache';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
@@ -67,10 +71,11 @@ export class Reviewer {
     if (this.settings.ignored(doc, settings)) {
       return { kind: 'refused', message: `файл в ignore ${CONFIG_PATH}, не отправляю` };
     }
-    const configured = await createProvider(this.context);
-    if (typeof configured === 'string') {
-      return { kind: 'refused', message: configured };
+    const main = await createProvider(this.context);
+    if (typeof main === 'string') {
+      return { kind: 'refused', message: main };
     }
+    let configured: ConfiguredProvider = main;
 
     // Читаем при каждом разборе: в F5 правка промпта видна без перезапуска.
     const version = this.promptVersion();
@@ -100,9 +105,11 @@ export class Reviewer {
     }
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;
-    const key = cacheKey(configured.id, request.system, request.prompt);
-    const cached = this.cache.get(key);
-    if (cached) {
+    const fromCache = (provider: ConfiguredProvider): Outcome | undefined => {
+      const cached = this.cache.get(cacheKey(provider.id, request.system, request.prompt));
+      if (!cached) {
+        return undefined;
+      }
       this.log.info(`${source}: ${where} — ответ из кэша`);
       return signal?.aborted
         ? { kind: 'aborted' }
@@ -112,12 +119,25 @@ export class Reviewer {
             cached: true,
             presentation: presentationOf(settings),
           };
+    };
+    const hit = fromCache(configured);
+    if (hit) {
+      return hit;
     }
 
     // Лимит в деньгах проверяем после кэша: ответ из кэша бесплатный.
     const over = this.usage.exceeded();
     if (over) {
-      return { kind: 'refused', message: `${over}, разборы на паузе (настройки adviser.budget)` };
+      const fallback = createFallbackProvider();
+      if (!fallback) {
+        return { kind: 'refused', message: `${over}, разборы на паузе (настройки adviser.budget)` };
+      }
+      this.log.info(`${over}: разбираю запасной моделью ${fallback.destination!.model}`);
+      configured = fallback;
+      const fallbackHit = fromCache(configured);
+      if (fallbackHit) {
+        return fallbackHit;
+      }
     }
     if (this.consent.needed(configured.destination)) {
       if (!interactive) {
@@ -135,7 +155,10 @@ export class Reviewer {
     const result = await runReview(configured.provider, request, signal, (u) => {
       spent.inputTokens += u.inputTokens;
       spent.outputTokens += u.outputTokens;
-      void this.usage.add(u);
+      // Запасная модель — на этом компьютере и бесплатная: в бюджет её расход не идёт.
+      if (!over) {
+        void this.usage.add(u);
+      }
     });
     if (signal?.aborted) {
       this.log.info(`${where}: код изменился, разбор отменён`);
@@ -158,7 +181,7 @@ export class Reviewer {
     this.log.info(
       `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')}${tokens})`,
     );
-    this.cache.set(key, review);
+    this.cache.set(cacheKey(configured.id, request.system, request.prompt), review);
     return {
       kind: 'reviewed',
       review: shown(review, settings),

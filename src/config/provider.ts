@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import type { Destination } from '../core/consent';
+import { isLocal, type Destination } from '../core/consent';
+import { OLLAMA_URL } from '../core/setup';
 import type { Provider } from '../core/engine';
 import { createClaudeCodeProvider, resolveClaudeExecutable } from '../providers/claudeCode';
 import { mockProvider } from '../providers/mock';
@@ -64,6 +65,24 @@ export async function createProvider(
     default:
       return `неизвестный провайдер «${kind}» в adviser.provider`;
   }
+}
+
+/**
+ * Запасная модель на случай исчерпанного бюджета (6.9 плана). Только сервер на этом компьютере:
+ * он бесплатный, и код не уходит в сеть. undefined — запасной нет, разборы встают на паузу.
+ */
+export function createFallbackProvider(): ConfiguredProvider | undefined {
+  const config = vscode.workspace.getConfiguration('adviser.budget');
+  const model = config.get<string>('fallbackModel', '').trim();
+  const baseURL = config.get<string>('fallbackBaseUrl', OLLAMA_URL);
+  if (!model || !isLocal(baseURL)) {
+    return undefined;
+  }
+  return {
+    id: `fallback ${baseURL} ${model}`,
+    destination: { baseUrl: baseURL, model },
+    provider: createOpenAICompatibleProvider({ baseURL, model }),
+  };
 }
 
 export async function setApiKey(context: vscode.ExtensionContext) {
