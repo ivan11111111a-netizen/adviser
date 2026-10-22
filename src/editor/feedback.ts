@@ -47,7 +47,8 @@ export function feedbackActions(
           return a;
         };
         // Применить можно только уже показанное решение: лампочка не должна обходить ступени.
-        const apply = finding.step >= 3 ? [applyFix(document, finding.range, issue, quote)] : [];
+        const apply =
+          finding.step >= 3 ? [applyFix(document, finding.range, issue, quote, diagnostics)] : [];
         return [
           ...apply,
           action(`Adviser: понял${quote}`, FEEDBACK_COMMAND, {
@@ -78,6 +79,7 @@ function applyFix(
   range: vscode.Range,
   issue: Issue,
   quote: string,
+  diagnostics: vscode.Diagnostic[],
 ): vscode.CodeAction {
   const title = `Adviser: применить решение${quote}`;
   const action = new vscode.CodeAction(title, vscode.CodeActionKind.QuickFix);
@@ -94,6 +96,7 @@ function applyFix(
     label: issue.fix.description,
   });
   action.edit = edit;
+  action.diagnostics = diagnostics;
   return action;
 }
 
