@@ -11,8 +11,24 @@
   "engines": {
     "vscode": "^1.101.0"
   },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1E3A8A",
+    "theme": "dark"
+  },
   "categories": [
-    "Other"
+    "Education",
+    "AI",
+    "Linters"
+  ],
+  "keywords": [
+    "mentor",
+    "learning",
+    "beginner",
+    "code review",
+    "hints",
+    "наставник",
+    "обучение"
   ],
   "activationEvents": [
     "onStartupFinished"

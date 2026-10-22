@@ -21,3 +21,4 @@ vitest.config.mts
 **/*.ts
 **/.vscode-test.*
 evals/**
+scripts/**
