@@ -28,6 +28,12 @@ export interface Provider {
 /** Провайдер бросает её, если модель ответила не JSON. На неё, как и на ответ не по схеме, движок делает один повтор. */
 export class InvalidResponseError extends Error {}
 
+/**
+ * Модель отказала, и повтор сам не поможет: нет доступа, исчерпан лимит тарифа. message — для
+ * человека, уже на языке интерфейса. Движок её не глотает: разбор встаёт, а не повторяется.
+ */
+export class ProviderRefusal extends Error {}
+
 export const MIN_CONFIDENCE = 0.5;
 export const MAX_ISSUES = 3;
 
@@ -55,6 +61,9 @@ export async function runStructured<T>(
     try {
       raw = await provider.complete(request, signal, onUsage);
     } catch (e) {
+      if (e instanceof ProviderRefusal) {
+        throw e;
+      }
       if (!(e instanceof InvalidResponseError)) {
         return { ok: false, error: e instanceof Error ? e.message : String(e), invalid: false };
       }

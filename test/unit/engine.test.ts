@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import {
   InvalidResponseError,
+  ProviderRefusal,
   runReview,
   runStructured,
   type Provider,
@@ -73,6 +74,12 @@ describe('runReview', () => {
       error: '429 Too Many Requests',
       invalid: false,
     });
+    expect(p.calls).toBe(1);
+  });
+
+  test('отказ модели (нет доступа, исчерпан лимит) выходит наружу: это не сбой, а причина', async () => {
+    const p = scripted(new ProviderRefusal('исчерпан лимит Copilot'), mockReview);
+    await expect(runReview(p, request)).rejects.toThrow(ProviderRefusal);
     expect(p.calls).toBe(1);
   });
 

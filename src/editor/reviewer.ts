@@ -9,7 +9,13 @@ import { cacheKey, LruCache } from '../core/cache';
 import { applyCourse, applyCourseText } from '../core/course';
 import { toFileLines, type LineRange } from '../core/codeRange';
 import type { Presentation } from '../core/disclosure';
-import { runReview, runStructured, type ModelRequest, type Usage } from '../core/engine';
+import {
+  ProviderRefusal,
+  runReview,
+  runStructured,
+  type ModelRequest,
+  type Usage,
+} from '../core/engine';
 import { hintLeak } from '../core/hintGuard';
 import {
   buildExercisePrompt,
@@ -76,7 +82,10 @@ const textOf = (doc: vscode.TextDocument, range: LineRange) =>
 
 export type Outcome =
   | { kind: 'reviewed'; review: Review; cached: boolean; presentation: Presentation }
-  /** Разбирать нельзя: провайдер не настроен или файл не отправляется. message — для статус-бара. */
+  /**
+   * Разбирать нельзя: провайдер не настроен, файл не отправляется или модель отказала (нет
+   * доступа, исчерпан лимит). message — для статус-бара.
+   */
   | { kind: 'refused'; message: string }
   | { kind: 'failed'; error: string; invalid: boolean }
   /** Код изменился, пока шёл разбор. */
@@ -107,6 +116,10 @@ export class Reviewer {
     try {
       return await this.run(doc, range, source, signal, interactive);
     } catch (e) {
+      if (e instanceof ProviderRefusal) {
+        this.log.warn(refusalText(e));
+        return { kind: 'refused', message: e.message };
+      }
       // Сбой самого Adviser (нет раздела в промпте, не читается patterns.json…): без всплывающих
       // окон, как и ошибки сети, — в лог и в статус-бар.
       this.log.error(
@@ -423,6 +436,10 @@ export class Reviewer {
       }
       return { kind: 'done', data: result.data, language };
     } catch (e) {
+      if (e instanceof ProviderRefusal) {
+        this.log.warn(`${task.what}: ${refusalText(e)}`);
+        return { kind: 'refused', message: e.message };
+      }
       this.log.error(
         `${task.what}: не получилось: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
       );
@@ -501,6 +518,10 @@ export class Reviewer {
     return fromSources && /^[\w.-]+$/.test(dev) ? dev : PROMPT_VERSION;
   }
 }
+
+/** Для лога: наша причина и то, что сказал сам провайдер. */
+const refusalText = (e: ProviderRefusal) =>
+  e.cause instanceof Error ? `${e.message} (${e.cause.message})` : e.message;
 
 /** В кэше — полный ответ, а фильтры проекта применяем при показе: их можно поменять на ходу. */
 const shown = (review: Review, settings: Settings): Review => ({

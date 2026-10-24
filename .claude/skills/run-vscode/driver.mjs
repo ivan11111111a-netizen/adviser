@@ -134,9 +134,22 @@ const COMMANDS = {
     }
   },
   // click Объяснить — клик мышью по первой видимой ссылке или кнопке ровно с таким текстом.
+  // Тот же текст бывает и в недоступном элементе (заголовок на странице приветствия) — его пропускаем.
   async click(text) {
-    await page.getByText(text, { exact: true }).first().click({ timeout: 10_000 });
-    await sleep(1500);
+    const found = page.getByText(text, { exact: true });
+    const end = Date.now() + 10_000;
+    do {
+      for (let i = 0; i < (await found.count()); i++) {
+        const el = found.nth(i);
+        if ((await el.isVisible()) && (await el.isEnabled())) {
+          await el.click({ timeout: 10_000 });
+          await sleep(1500);
+          return;
+        }
+      }
+      await sleep(500);
+    } while (Date.now() < end);
+    throw new Error(`за 10 с не появилось видимой кнопки «${text}»`);
   },
   type: (text) => page.keyboard.type(text, { delay: 20 }),
   press: (key) => page.keyboard.press(key),
