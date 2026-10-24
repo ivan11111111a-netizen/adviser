@@ -175,7 +175,7 @@
     "jsonValidation": [
       {
         "fileMatch": "**/.adviser/config.json",
-        "url": "./schemas/adviser-config.schema.json"
+        "url": "%jsonValidation.config.url%"
       }
     ],
     "walkthroughs": [

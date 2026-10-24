@@ -1,0 +1,20 @@
+{
+  "When to review: mentor — on its own, manual — only on command. A project can turn the autopilot off but cannot turn it on for someone who chose manual.": "Когда разбирать: mentor — сам, manual — только по команде. Проект может выключить автопилот, но не включить его тому, кто выбрал manual.",
+  "The learner level: beginner, intermediate or advanced.": "Уровень учащегося: beginner, intermediate или advanced.",
+  "Advice language: auto — by the VS Code display language.": "Язык советов: auto — по языку интерфейса VS Code.",
+  "Review on manual save.": "Разбирать при сохранении вручную.",
+  "Review when the cursor leaves a changed function.": "Разбирать, когда курсор уходит из изменённой функции.",
+  "Review after a typing pause, seconds. 0 — no review on pause.": "Разбирать после паузы в наборе, секунд. 0 — не разбирать по паузе.",
+  "Do not review the same function more often than this, minutes.": "Не разбирать одну функцию чаще, минут.",
+  "How many issues to show per function.": "Сколько замечаний на функцию показывать.",
+  "Review limits. A project can only make them stricter: a repository you cloned must not spend your requests.": "Лимиты разборов. Проект может только ужесточить их: чужой репозиторий не должен тратить твои запросы.",
+  "The mildest severity to show: critical, warning or suggestion (all).": "Самая лёгкая серьёзность, которую показывать: critical, warning или suggestion (все).",
+  "false — do not show issues of this category.": "false — не показывать замечания этой категории.",
+  "Test in progress: Adviser is silent in this folder, even on command.": "Контрольная: Adviser в этой папке молчит, даже по команде.",
+  "Do not show the ready solution: only the hint and the explanation.": "Не показывать готовое решение: только намёк и объяснение.",
+  "Words Adviser does not say in this assignment: they are cut from the texts, and a solution containing them is hidden.": "Слова, которых Adviser не говорит в этом задании: они вырезаются из текстов, а решение с ними скрывается.",
+  "Course rules from the teacher.": "Правила курса от преподавателя.",
+  "Add files for AI agents to the rules from .adviser/rules.md: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. Off by default.": "Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.",
+  "Glob patterns of files, from the project root, that Adviser does not send: [\"generated/**\"].": "Glob-шаблоны файлов от корня проекта, которые Adviser не отправляет: [\"generated/**\"].",
+  "Adviser: project settings": "Adviser: настройки проекта"
+}

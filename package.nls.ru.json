@@ -17,6 +17,7 @@
   "command.exercise": "Упражнение на частую ошибку",
   "command.understandChanges": "Понимаю ли я изменения",
   "view.journal": "Журнал",
+  "jsonValidation.config.url": "./schemas/adviser-config.schema.ru.json",
   "walkthrough.title": "Начало работы с Adviser",
   "walkthrough.description": "ИИ-наставник для тех, кто учится программировать: подключить модель, выбрать уровень и попробовать разбор.",
   "walkthrough.model.title": "Кто будет разбирать код",

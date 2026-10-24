@@ -82,7 +82,7 @@ export function fillTemplate(
       }
       const section = template.sections[kind]?.[chosen[kind]];
       if (section === undefined) {
-        throw new Error(`в промпте нет раздела «## ${kind}: ${chosen[kind]}»`);
+        throw new Error(`the prompt has no section "## ${kind}: ${chosen[kind]}"`);
       }
       return fill(section);
     });

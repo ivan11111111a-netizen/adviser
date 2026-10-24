@@ -15,29 +15,29 @@ export const projectConfigSchema = z
       .enum(MODES)
       .optional()
       .describe(
-        'Когда разбирать: mentor — сам, manual — только по команде. Проект может выключить автопилот, но не включить его тому, кто выбрал manual.',
+        'When to review: mentor — on its own, manual — only on command. A project can turn the autopilot off but cannot turn it on for someone who chose manual.',
       ),
     level: z
       .enum(LEVELS)
       .optional()
-      .describe('Уровень учащегося: beginner, intermediate или advanced.'),
+      .describe('The learner level: beginner, intermediate or advanced.'),
     language: z
       .enum(['auto', ...ADVICE_LANGUAGES])
       .optional()
-      .describe('Язык советов: auto — по языку интерфейса VS Code.'),
+      .describe('Advice language: auto — by the VS Code display language.'),
     triggers: z
       .object({
-        onSave: z.boolean().optional().describe('Разбирать при сохранении вручную.'),
+        onSave: z.boolean().optional().describe('Review on manual save.'),
         onLeaveFunction: z
           .boolean()
           .optional()
-          .describe('Разбирать, когда курсор уходит из изменённой функции.'),
+          .describe('Review when the cursor leaves a changed function.'),
         idleSeconds: z
           .number()
           .int()
           .min(0)
           .optional()
-          .describe('Разбирать после паузы в наборе, секунд. 0 — не разбирать по паузе.'),
+          .describe('Review after a typing pause, seconds. 0 — no review on pause.'),
       })
       .optional(),
     limits: z
@@ -48,62 +48,60 @@ export const projectConfigSchema = z
           .number()
           .min(0)
           .optional()
-          .describe('Не разбирать одну функцию чаще, минут.'),
+          .describe('Do not review the same function more often than this, minutes.'),
         maxIssuesPerBlock: z
           .number()
           .int()
           .min(1)
           .max(MAX_ISSUES)
           .optional()
-          .describe('Сколько замечаний на функцию показывать.'),
+          .describe('How many issues to show per function.'),
       })
       .optional()
       .describe(
-        'Лимиты разборов. Проект может только ужесточить их: чужой репозиторий не должен тратить твои запросы.',
+        'Review limits. A project can only make them stricter: a repository you cloned must not spend your requests.',
       ),
     minSeverity: z
       .enum(SEVERITIES)
       .optional()
-      .describe(
-        'Самая лёгкая серьёзность, которую показывать: critical, warning или suggestion (все).',
-      ),
+      .describe('The mildest severity to show: critical, warning or suggestion (all).'),
     categories: z
       .partialRecord(z.enum(CATEGORIES), z.boolean())
       .optional()
-      .describe('false — не показывать замечания этой категории.'),
+      .describe('false — do not show issues of this category.'),
     course: z
       .object({
         silent: z
           .boolean()
           .optional()
-          .describe('Контрольная: Adviser в этой папке молчит, даже по команде.'),
+          .describe('Test in progress: Adviser is silent in this folder, even on command.'),
         hideSolutions: z
           .boolean()
           .optional()
-          .describe('Не показывать готовое решение: только намёк и объяснение.'),
+          .describe('Do not show the ready solution: only the hint and the explanation.'),
         forbidden: z
           .array(z.string())
           .optional()
           .describe(
-            'Слова, которых Adviser не говорит в этом задании: они вырезаются из текстов, а решение с ними скрывается.',
+            'Words Adviser does not say in this assignment: they are cut from the texts, and a solution containing them is hidden.',
           ),
       })
       .optional()
-      .describe('Правила курса от преподавателя.'),
+      .describe('Course rules from the teacher.'),
     readAgentFiles: z
       .boolean()
       .optional()
       .describe(
-        'Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.',
+        'Add files for AI agents to the rules from .adviser/rules.md: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. Off by default.',
       ),
     ignore: z
       .array(z.string())
       .optional()
       .describe(
-        'Glob-шаблоны файлов от корня проекта, которые Adviser не отправляет: ["generated/**"].',
+        'Glob patterns of files, from the project root, that Adviser does not send: ["generated/**"].',
       ),
   })
-  .meta({ title: 'Adviser: настройки проекта' });
+  .meta({ title: 'Adviser: project settings' });
 
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 

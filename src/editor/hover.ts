@@ -148,7 +148,7 @@ export async function openCase(log: vscode.LogOutputChannel, args?: CaseArgs) {
     doc = await vscode.workspace.openTextDocument(uri);
   } catch (e) {
     // Файл удалили или переименовали, а несохранённый Untitled закрыли.
-    log.info(`прошлый случай не открыт: ${String(e)}`);
+    log.info(`the previous case did not open: ${String(e)}`);
     vscode.window.setStatusBarMessage(
       vscode.l10n.t('Adviser: the file with the previous case is gone'),
       6000,
@@ -180,7 +180,7 @@ export async function revealStep(
   if (!finding) {
     return;
   }
-  log.info(`${finding.issue.patternId}: открыта ступень ${finding.step}`);
+  log.info(`${finding.issue.patternId}: opened step ${finding.step}`);
   await showHoverAgain(finding);
 }
 

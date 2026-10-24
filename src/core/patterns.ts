@@ -18,8 +18,8 @@ const FAMILIES = {
 const patternSchema = z.object({
   id: z
     .string()
-    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'id в kebab-case')
-    .refine((id) => id !== OTHER_PATTERN, 'other не пишется в список'),
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'id in kebab-case')
+    .refine((id) => id !== OTHER_PATTERN, 'other is not listed'),
   title: z.object({ ru: z.string().min(1), en: z.string().min(1) }),
   /** Нет поля — тип общий для всех языков. */
   languages: z.array(z.enum(Object.keys(FAMILIES) as [keyof typeof FAMILIES])).optional(),
@@ -28,7 +28,7 @@ const patternSchema = z.object({
 const patternsFileSchema = z.object({
   patterns: z
     .array(patternSchema)
-    .refine((list) => new Set(list.map((p) => p.id)).size === list.length, 'id повторяются'),
+    .refine((list) => new Set(list.map((p) => p.id)).size === list.length, 'ids repeat'),
 });
 
 export type Pattern = z.infer<typeof patternSchema>;

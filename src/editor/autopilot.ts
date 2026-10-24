@@ -10,12 +10,13 @@ import { isDirty, REVIEWED_SCHEMES, type ProjectSettings } from './settings';
 import type { StatusBar } from './statusBar';
 import { documentSymbols } from './symbols';
 
-type Trigger = 'сохранение' | 'уход из функции' | 'пауза' | 'повтор';
+/** Повод для разбора. Строки идут в лог, а лог — на английском. */
+type Trigger = 'save' | 'left the function' | 'pause' | 'retry';
 
 const SKIP_TEXT: Record<SkipReason, string> = {
-  errors: 'в ней ошибки компилятора, человек ещё печатает',
-  cooldown: 'её недавно разбирали',
-  limit: 'исчерпан лимит разборов',
+  errors: 'it has compiler errors, still being typed',
+  cooldown: 'it was reviewed recently',
+  limit: 'the review limit is reached',
 };
 
 /** Курсор стоит: проверяем, не ушёл ли он из функции. */
@@ -90,7 +91,7 @@ export class Autopilot implements vscode.Disposable {
           this.manualSaves.delete(doc.uri.toString()) &&
           this.settings.get(doc.uri).triggers.onSave
         ) {
-          void this.trigger(doc, 'сохранение');
+          void this.trigger(doc, 'save');
         }
       }),
       // Ноутбук сохраняется целиком: события о сохранении его ячеек не приходят.
@@ -107,7 +108,7 @@ export class Autopilot implements vscode.Disposable {
           this.manualSaves.delete(notebook.uri.toString()) &&
           this.settings.get(notebook.uri).triggers.onSave
         ) {
-          notebook.getCells().forEach((cell) => void this.trigger(cell.document, 'сохранение'));
+          notebook.getCells().forEach((cell) => void this.trigger(cell.document, 'save'));
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((e) => {
@@ -160,16 +161,16 @@ export class Autopilot implements vscode.Disposable {
   private blocked(doc: vscode.TextDocument): string | undefined {
     const settings = this.settings.get(doc.uri);
     if (settings.mode === 'manual') {
-      return 'режим «Вручную»';
+      return 'manual mode';
     }
     if (settings.course.silent) {
-      return 'контрольная';
+      return 'test in progress';
     }
     if (doNotDisturbUntil(this.context)) {
-      return '«Не беспокоить»';
+      return 'do not disturb';
     }
     if (Date.now() < this.retryAt) {
-      return `пауза после ошибки до ${clock(this.retryAt)}`;
+      return `paused after an error until ${clock(this.retryAt)}`;
     }
     return undefined;
   }
@@ -247,7 +248,7 @@ export class Autopilot implements vscode.Disposable {
     clearTimeout(state.pauseTimer);
     const { pauseMs } = this.settings.get(doc.uri).triggers;
     if (pauseMs > 0) {
-      state.pauseTimer = setTimeout(() => void this.trigger(doc, 'пауза'), pauseMs);
+      state.pauseTimer = setTimeout(() => void this.trigger(doc, 'pause'), pauseMs);
     }
   }
 
@@ -269,7 +270,7 @@ export class Autopilot implements vscode.Disposable {
     const left = state.cursorKey;
     state.cursorKey = here;
     if (left && left !== here) {
-      void this.trigger(doc, 'уход из функции', left);
+      void this.trigger(doc, 'left the function', left);
     }
   }
 
@@ -280,7 +281,7 @@ export class Autopilot implements vscode.Disposable {
     if (previous !== editor?.document && left?.cursorKey) {
       const key = left.cursorKey;
       left.cursorKey = undefined;
-      void this.trigger(previous!, 'уход из функции', key);
+      void this.trigger(previous!, 'left the function', key);
     }
     if (
       editor &&
@@ -355,12 +356,12 @@ export class Autopilot implements vscode.Disposable {
       return;
     }
     const settings = this.settings.get(doc.uri);
-    if (why === 'уход из функции' && !settings.triggers.onLeaveFunction) {
+    if (why === 'left the function' && !settings.triggers.onLeaveFunction) {
       return;
     }
     const blocked = this.blocked(doc);
     if (blocked) {
-      this.log.debug(`${why}: автопилот молчит — ${blocked}`);
+      this.log.debug(`${why}: the autopilot is silent — ${blocked}`);
       return;
     }
     const functions = await this.functions(doc, state);
@@ -395,14 +396,14 @@ export class Autopilot implements vscode.Disposable {
       settings.limits,
     );
     for (const { key, reason } of skipped) {
-      this.log.debug(`${why}: ${key} подождёт — ${SKIP_TEXT[reason]}`);
+      this.log.debug(`${why}: ${key} will wait — ${SKIP_TEXT[reason]}`);
     }
     for (const key of ready) {
       const fn = changed.find((f) => f.key === key)!;
       this.queue.push({ doc, why, key, code: fn.code, range: { start: fn.start, end: fn.end } });
     }
     if (ready.length) {
-      this.log.debug(`${why}: в очереди ${ready.join(', ')}`);
+      this.log.debug(`${why}: queued ${ready.join(', ')}`);
       void this.pump();
     }
   }
@@ -423,7 +424,7 @@ export class Autopilot implements vscode.Disposable {
     let outcome: Outcome;
     try {
       outcome = await this.status.busy(
-        this.reviewer.review(job.doc, job.range, `автопилот, ${job.why}`, job.abort.signal),
+        this.reviewer.review(job.doc, job.range, `autopilot, ${job.why}`, job.abort.signal),
       );
     } finally {
       this.running = undefined;
@@ -470,7 +471,7 @@ export class Autopilot implements vscode.Disposable {
         this.retryTimer = setTimeout(() => {
           const doc = vscode.window.activeTextEditor?.document;
           if (doc) {
-            void this.trigger(doc, 'повтор');
+            void this.trigger(doc, 'retry');
           }
         }, delay);
         return;
@@ -478,7 +479,7 @@ export class Autopilot implements vscode.Disposable {
       case 'refused':
         this.queue = [];
         this.status.setProblem(outcome.message);
-        this.log.debug(`автопилот: ${outcome.message}`);
+        this.log.debug(`autopilot: ${outcome.message}`);
         return;
       case 'aborted':
         return;

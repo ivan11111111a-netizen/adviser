@@ -78,7 +78,7 @@ export async function runStructured<T>(
   }
   return {
     ok: false,
-    error: `ответ модели дважды не прошёл проверку схемы: ${lastError}`,
+    error: `the model answer failed the schema check twice: ${lastError}`,
     invalid: true,
   };
 }

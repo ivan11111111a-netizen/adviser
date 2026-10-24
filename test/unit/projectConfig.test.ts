@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import {
@@ -138,9 +139,34 @@ test('filterIssues: серьёзность, категории, число', () 
   expect(filterIssues(issues, hidden).map((i) => i.patternId)).toEqual(['a']);
 });
 
-test('schemas/adviser-config.schema.json совпадает со схемой (обновить: npx vitest -u)', async () => {
+describe('schemas/adviser-config.schema*.json совпадают со схемой (обновить: npx vitest -u)', () => {
   const schema = z.toJSONSchema(projectConfigSchema, { target: 'draft-7', io: 'input' });
-  await expect(`${JSON.stringify(schema, null, 2)}\n`).toMatchFileSnapshot(
-    '../../schemas/adviser-config.schema.json',
-  );
+  // Описания в zod английские, русские — словарь: VS Code берёт схему на языке интерфейса
+  // (адрес схемы в package.json — через package.nls*.json).
+  const ru = JSON.parse(readFileSync('l10n/config-schema.ru.json', 'utf8')) as Record<
+    string,
+    string
+  >;
+  const texts = new Set<string>();
+  const translated = JSON.parse(JSON.stringify(schema), (key, value: unknown) => {
+    if ((key === 'description' || key === 'title') && typeof value === 'string') {
+      texts.add(value);
+      return ru[value] ?? value;
+    }
+    return value;
+  }) as unknown;
+
+  test('английская', async () => {
+    await expect(`${JSON.stringify(schema, null, 2)}\n`).toMatchFileSnapshot(
+      '../../schemas/adviser-config.schema.json',
+    );
+  });
+
+  test('русская: у каждого описания есть перевод, лишних нет', async () => {
+    expect([...texts].filter((t) => !(t in ru))).toEqual([]);
+    expect(Object.keys(ru).filter((t) => !texts.has(t))).toEqual([]);
+    await expect(`${JSON.stringify(translated, null, 2)}\n`).toMatchFileSnapshot(
+      '../../schemas/adviser-config.schema.ru.json',
+    );
+  });
 });

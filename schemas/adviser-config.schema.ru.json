@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "description": "Когда разбирать: mentor — сам, manual — только по команде. Проект может выключить автопилот, но не включить его тому, кто выбрал manual.",
+      "type": "string",
+      "enum": [
+        "mentor",
+        "reviewer",
+        "manual"
+      ]
+    },
+    "level": {
+      "description": "Уровень учащегося: beginner, intermediate или advanced.",
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "language": {
+      "description": "Язык советов: auto — по языку интерфейса VS Code.",
+      "type": "string",
+      "enum": [
+        "auto",
+        "ru",
+        "en"
+      ]
+    },
+    "triggers": {
+      "type": "object",
+      "properties": {
+        "onSave": {
+          "description": "Разбирать при сохранении вручную.",
+          "type": "boolean"
+        },
+        "onLeaveFunction": {
+          "description": "Разбирать, когда курсор уходит из изменённой функции.",
+          "type": "boolean"
+        },
+        "idleSeconds": {
+          "description": "Разбирать после паузы в наборе, секунд. 0 — не разбирать по паузе.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "limits": {
+      "description": "Лимиты разборов. Проект может только ужесточить их: чужой репозиторий не должен тратить твои запросы.",
+      "type": "object",
+      "properties": {
+        "perHour": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "perDay": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cooldownMinutes": {
+          "description": "Не разбирать одну функцию чаще, минут.",
+          "type": "number",
+          "minimum": 0
+        },
+        "maxIssuesPerBlock": {
+          "description": "Сколько замечаний на функцию показывать.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        }
+      }
+    },
+    "minSeverity": {
+      "description": "Самая лёгкая серьёзность, которую показывать: critical, warning или suggestion (все).",
+      "type": "string",
+      "enum": [
+        "critical",
+        "warning",
+        "suggestion"
+      ]
+    },
+    "categories": {
+      "description": "false — не показывать замечания этой категории.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "bug",
+          "edge-case",
+          "security",
+          "performance",
+          "readability",
+          "style",
+          "project-fit"
+        ]
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "course": {
+      "description": "Правила курса от преподавателя.",
+      "type": "object",
+      "properties": {
+        "silent": {
+          "description": "Контрольная: Adviser в этой папке молчит, даже по команде.",
+          "type": "boolean"
+        },
+        "hideSolutions": {
+          "description": "Не показывать готовое решение: только намёк и объяснение.",
+          "type": "boolean"
+        },
+        "forbidden": {
+          "description": "Слова, которых Adviser не говорит в этом задании: они вырезаются из текстов, а решение с ними скрывается.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "readAgentFiles": {
+      "description": "Добавлять к правилам из .adviser/rules.md файлы для ИИ-агентов: AGENTS.md, CLAUDE.md, .cursorrules, .github/copilot-instructions.md. По умолчанию нет.",
+      "type": "boolean"
+    },
+    "ignore": {
+      "description": "Glob-шаблоны файлов от корня проекта, которые Adviser не отправляет: [\"generated/**\"].",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "title": "Adviser: настройки проекта"
+}

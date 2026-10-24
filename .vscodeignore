@@ -22,3 +22,4 @@ vitest.config.mts
 **/.vscode-test.*
 evals/**
 scripts/**
+l10n/config-schema.ru.json

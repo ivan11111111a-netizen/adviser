@@ -122,9 +122,7 @@ export class Reviewer {
       }
       // Сбой самого Adviser (нет раздела в промпте, не читается patterns.json…): без всплывающих
       // окон, как и ошибки сети, — в лог и в статус-бар.
-      this.log.error(
-        `разбор не удался: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
-      );
+      this.log.error(`review failed: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
       return { kind: 'failed', error: String(e), invalid: false };
     }
   }
@@ -171,7 +169,7 @@ export class Reviewer {
     const prompt = redact(built.prompt);
     const request = { ...built, system: system.text, prompt: prompt.text };
     if (system.count + prompt.count) {
-      this.log.info(`скрыто секретов перед отправкой: ${system.count + prompt.count}`);
+      this.log.info(`secrets masked before sending: ${system.count + prompt.count}`);
     }
 
     const where = `${doc.uri.fsPath}:${range.start + 1}-${range.end + 1}`;
@@ -180,7 +178,7 @@ export class Reviewer {
       if (!cached) {
         return undefined;
       }
-      this.log.info(`${source}: ${where} — ответ из кэша`);
+      this.log.info(`${source}: ${where} — answer from the cache`);
       return signal?.aborted
         ? { kind: 'aborted' }
         : {
@@ -211,7 +209,9 @@ export class Reviewer {
     if (denied) {
       return { kind: 'refused', message: denied };
     }
-    this.log.info(`${source}: разбор ${where}, ${version}, уровень ${level}, язык ${language}`);
+    this.log.info(
+      `${source}: reviewing ${where}, ${version}, level ${level}, language ${language}`,
+    );
     const spent = { inputTokens: 0, outputTokens: 0 };
     const result = await runReview(configured.provider, request, signal, (u) => {
       spent.inputTokens += u.inputTokens;
@@ -219,7 +219,7 @@ export class Reviewer {
       budget.spend(u);
     });
     if (signal?.aborted) {
-      this.log.info(`${where}: код изменился, разбор отменён`);
+      this.log.info(`${where}: the code changed, review cancelled`);
       return { kind: 'aborted' };
     }
     if (!result.ok) {
@@ -230,7 +230,9 @@ export class Reviewer {
     const normalized = normalizePatternIds(result.review, patterns);
     if (normalized.unknown.length) {
       // Повод дополнить patterns/patterns.json.
-      this.log.info(`patternId не из списка, записаны как other: ${normalized.unknown.join(', ')}`);
+      this.log.info(
+        `patternId not in the list, recorded as other: ${normalized.unknown.join(', ')}`,
+      );
     }
     // Намёк, который называет новое из решения, выдаёт ответ: убираем — сразу объяснение.
     const review = {
@@ -240,16 +242,16 @@ export class Reviewer {
         if (!leak) {
           return issue;
         }
-        this.log.info(`${issue.patternId}: намёк выдавал ответ («${leak}»), показываю объяснение`);
+        this.log.info(
+          `${issue.patternId}: the hint gave the answer away ("${leak}"), showing the explanation`,
+        );
         return { ...issue, hint: '' };
       }),
     };
     const { issues, summary } = review;
-    const tokens = spent.inputTokens
-      ? `, токенов ${spent.inputTokens} → ${spent.outputTokens}`
-      : '';
+    const tokens = spent.inputTokens ? `, tokens ${spent.inputTokens} → ${spent.outputTokens}` : '';
     this.log.info(
-      `${summary} (замечаний: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')}${tokens})`,
+      `${summary} (issues: ${issues.length}: ${issues.map((i) => i.patternId).join(', ')}${tokens})`,
     );
     this.cache.set(cacheKey(configured.id, request.system, request.prompt), review);
     return {
@@ -276,7 +278,7 @@ export class Reviewer {
       return { kind: 'refused', message: settings };
     }
     const asked = await this.ask({
-      what: `проверка ответа: ${issue.patternId}`,
+      what: `checking the answer: ${issue.patternId}`,
       version: CHECK_PROMPT_VERSION,
       schema: checkSchema,
       settings,
@@ -299,10 +301,12 @@ export class Reviewer {
     // Отзыв на неверный ответ — новый вопрос, а не решение: если выдаёт решение, заменяем.
     const leak = !understood && hintLeak(feedback, issue.fix.code, code);
     if (leak) {
-      this.log.info(`${issue.patternId}: отзыв выдавал ответ («${leak}»), заменён`);
+      this.log.info(`${issue.patternId}: the feedback gave the answer away ("${leak}"), replaced`);
       feedback = checkFallback(asked.language);
     }
-    this.log.info(`${issue.patternId}: ${understood ? 'объяснил верно' : 'пока не понял'}`);
+    this.log.info(
+      `${issue.patternId}: ${understood ? 'explained correctly' : 'not understood yet'}`,
+    );
     return { kind: 'checked', understood, feedback: applyCourseText(feedback, settings.course) };
   }
 
@@ -317,7 +321,7 @@ export class Reviewer {
   ): Promise<ExerciseOutcome> {
     const settings = this.settings.get(uri);
     const asked = await this.ask({
-      what: `упражнение: ${pattern.id}, ${languageId}`,
+      what: `exercise: ${pattern.id}, ${languageId}`,
       version: EXERCISE_PROMPT_VERSION,
       schema: exerciseSchema,
       settings,
@@ -337,7 +341,7 @@ export class Reviewer {
       return { kind: 'refused', message: settings };
     }
     return this.ask({
-      what: 'вопросы по изменениям',
+      what: 'questions about the changes',
       version: QUESTIONS_PROMPT_VERSION,
       schema: questionsSchema,
       settings,
@@ -359,7 +363,7 @@ export class Reviewer {
       return { kind: 'refused', message: settings };
     }
     const asked = await this.ask({
-      what: 'ответы на вопросы по изменениям',
+      what: 'answers to the questions about the changes',
       version: ANSWERS_PROMPT_VERSION,
       schema: answersSchema,
       settings,
@@ -441,7 +445,7 @@ export class Reviewer {
         return { kind: 'refused', message: e.message };
       }
       this.log.error(
-        `${task.what}: не получилось: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
+        `${task.what}: failed: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`,
       );
       return { kind: 'failed', error: String(e), invalid: false };
     }
@@ -480,7 +484,7 @@ export class Reviewer {
     if (!fallback) {
       return vscode.l10n.t('{0}, reviews are paused (adviser.budget settings)', over);
     }
-    this.log.info(`${over}: разбираю запасной моделью ${fallback.destination!.model}`);
+    this.log.info(`${over}: reviewing with the fallback model ${fallback.destination!.model}`);
     return { configured: fallback, spend: () => {} };
   }
 

@@ -119,7 +119,7 @@ export class Feedback {
     }
     const { patternId } = finding.issue;
     this.journal.update(finding.id, { feedback: args.kind });
-    this.log.info(`${patternId}: ${args.kind === 'understood' ? 'понял' : 'не согласен'}`);
+    this.log.info(`${patternId}: ${args.kind === 'understood' ? 'got it' : 'disagree'}`);
     if (args.kind !== 'disagree') {
       return;
     }
@@ -159,7 +159,7 @@ export class Feedback {
       );
     }
     this.findings.hidePattern(args.patternId);
-    this.log.info(`${args.patternId}: больше не показывать`);
+    this.log.info(`${args.patternId}: stop showing`);
     this.status.flash(
       vscode.l10n.t(
         'will not show "{0}" any more. To bring it back: the adviser.hiddenPatterns setting',

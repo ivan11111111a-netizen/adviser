@@ -31,7 +31,7 @@ describe('схема файла', () => {
   const parse = (patterns: unknown[]) => () => parsePatterns({ patterns });
 
   test('повтор id, не kebab-case и other в списке не проходят', () => {
-    expect(parse([pattern('a'), pattern('a')])).toThrow(/повторяются/);
+    expect(parse([pattern('a'), pattern('a')])).toThrow(/ids repeat/);
     expect(parse([pattern('Off_By_One')])).toThrow(/kebab-case/);
     expect(parse([pattern('other')])).toThrow(/other/);
   });

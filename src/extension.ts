@@ -82,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<TestAp
   const autopilot = new Autopilot(context, reviewer, findings, status, log, settings);
   // Названия типов ошибок для панели и отчёта. Без них панель покажет id.
   const patterns = await readPatterns(context).catch((e: unknown) => {
-    log.warn(`patterns.json не прочитан: ${String(e)}`);
+    log.warn(`patterns.json not read: ${String(e)}`);
     return [];
   });
   const journalView = new JournalView(journal, patterns);

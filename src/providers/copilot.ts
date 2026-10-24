@@ -51,7 +51,7 @@ export async function createCopilotProvider(
         }
         const json = extractJson(text);
         if (json === undefined) {
-          throw new InvalidResponseError('Copilot ответил не JSON');
+          throw new InvalidResponseError('Copilot did not answer with JSON');
         }
         return json;
       },

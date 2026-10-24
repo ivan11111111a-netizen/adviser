@@ -84,7 +84,7 @@ async function collectDiffs(
       continue;
     }
     if (!reviewer.sendable(doc)) {
-      log.info(`${path}: не отправляется (.env, ignore), в вопросы не вошёл`);
+      log.info(`${path}: not sent (.env, ignore), left out of the questions`);
       continue;
     }
     const diff = UNTRACKED.has(change.status)
@@ -159,7 +159,7 @@ export async function understandChanges(
     return;
   }
   const right = checked.data.filter((r) => r.understood).length;
-  log.info(`понимание изменений: верно ${right} из ${quiz.questions.length}`);
+  log.info(`understanding the changes: ${right} correct of ${quiz.questions.length}`);
   const file = vscode.Uri.joinPath(context.globalStorageUri, 'changes.md');
   await vscode.workspace.fs.createDirectory(context.globalStorageUri);
   await vscode.workspace.fs.writeFile(

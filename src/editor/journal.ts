@@ -45,7 +45,7 @@ export class Journal implements vscode.Disposable {
       ).entries;
     } catch (e) {
       // Записать такой журнал тоже не выйдет: flush сначала читает файл и при ошибке не пишет.
-      log.warn(`журнал не прочитан, работаю без истории: ${String(e)}`);
+      log.warn(`the journal was not read, working without history: ${String(e)}`);
     }
     return new Journal(dir, log, entries);
   }
@@ -109,7 +109,7 @@ export class Journal implements vscode.Disposable {
           new TextEncoder().encode(JSON.stringify(merged)),
         );
       })
-      .catch((e) => this.log.warn(`журнал не записан: ${String(e)}`));
+      .catch((e) => this.log.warn(`the journal was not saved: ${String(e)}`));
     return this.saving;
   }
 
@@ -151,7 +151,7 @@ async function readJournal(file: vscode.Uri, log: vscode.LogOutputChannel): Prom
   }
   const broken = file.with({ path: file.path.replace(/\.json$/, `.broken-${Date.now()}.json`) });
   await vscode.workspace.fs.rename(file, broken, { overwrite: true });
-  log.warn(`журнал испорчен и отложен в ${broken.fsPath}, начат новый`);
+  log.warn(`the journal is corrupted and moved to ${broken.fsPath}, starting a new one`);
   return EMPTY;
 }
 

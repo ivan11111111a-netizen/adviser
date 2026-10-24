@@ -31,13 +31,13 @@ export function parseClaudeOutput(stdout: string): unknown {
   try {
     out = JSON.parse(stdout);
   } catch {
-    throw new InvalidResponseError('claude вернул не JSON');
+    throw new InvalidResponseError('claude did not return JSON');
   }
   if (out.is_error) {
-    throw new Error(`claude: ${out.result ?? out.subtype ?? 'ошибка без описания'}`);
+    throw new Error(`claude: ${out.result ?? out.subtype ?? 'error without a description'}`);
   }
   if (out.structured_output === undefined) {
-    throw new InvalidResponseError('в ответе claude нет structured_output');
+    throw new InvalidResponseError('the claude answer has no structured_output');
   }
   return out.structured_output;
 }
@@ -108,7 +108,7 @@ function run(options: ClaudeCodeOptions, request: ModelRequest, signal?: AbortSi
     child.stderr.on('data', (d) => (stderr += d));
     child.on('error', (e) => {
       clearTimeout(timer);
-      reject(new Error(`не удалось запустить ${options.executable}: ${e.message}`));
+      reject(new Error(`could not start ${options.executable}: ${e.message}`));
     });
     child.on('close', (code) => {
       clearTimeout(timer);
@@ -116,7 +116,7 @@ function run(options: ClaudeCodeOptions, request: ModelRequest, signal?: AbortSi
       if (stdout.trim()) {
         resolve(stdout);
       } else {
-        reject(new Error(stderr.trim() || `claude завершился с кодом ${code}`));
+        reject(new Error(stderr.trim() || `claude exited with code ${code}`));
       }
     });
     child.stdin.end(request.prompt);

@@ -153,7 +153,7 @@ export class ProjectSettings implements vscode.Disposable {
       loaded.ignore = globs;
       if (skipped.length) {
         this.log.warn(
-          `${IGNORE_FILE}: отрицания не поддерживаются, пропущены: ${skipped.join(', ')}`,
+          `${IGNORE_FILE}: negations are not supported, skipped: ${skipped.join(', ')}`,
         );
       }
     }
@@ -161,13 +161,13 @@ export class ProjectSettings implements vscode.Disposable {
       // Не применяем ничего: опечатка не должна молча выключить ignore и отправить лишнее.
       loaded.error = errors.join('; ');
       loaded.config = undefined;
-      this.log.warn(`«${folder.name}»: ${loaded.error}. Разборы в этой папке стоят.`);
+      this.log.warn(`"${folder.name}": ${loaded.error}. Reviews in this folder are paused.`);
     } else if (loaded.config || loaded.ignore.length) {
       const what = [
         ...Object.keys(loaded.config ?? {}),
         ...(loaded.ignore.length ? [IGNORE_FILE] : []),
       ];
-      this.log.info(`настройки проекта «${folder.name}»: ${what.join(', ')}`);
+      this.log.info(`project settings of "${folder.name}": ${what.join(', ')}`);
     }
     this.loaded.set(folder.uri.toString(), loaded);
   }

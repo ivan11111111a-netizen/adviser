@@ -17,6 +17,7 @@
   "command.exercise": "Practice a Frequent Mistake",
   "command.understandChanges": "Do I Understand the Changes",
   "view.journal": "Journal",
+  "jsonValidation.config.url": "./schemas/adviser-config.schema.json",
   "walkthrough.title": "Get Started with Adviser",
   "walkthrough.description": "An AI mentor for people learning to program: connect a model, choose your level and try a review.",
   "walkthrough.model.title": "Who will review the code",
