@@ -104,6 +104,14 @@ const COMMANDS = {
     console.log('окно разработки:', await dev.title());
   },
   cmd: (title) => quickInput('Control+Shift+P', title, title),
+  // run <id> — команда по id, даже без названия в палитре: через сочетание клавиш в профиле.
+  async run(id) {
+    const file = path.join(profile, 'User', 'keybindings.json');
+    fs.writeFileSync(file, JSON.stringify([{ key: 'ctrl+alt+shift+f12', command: id }]));
+    await sleep(2000);
+    await page.keyboard.press('Control+Alt+Shift+F12');
+    await sleep(1500);
+  },
   async open(file) {
     const abs = path.resolve(ROOT, file);
     await quickInput('Control+P', abs, path.basename(abs));
@@ -133,8 +141,10 @@ const COMMANDS = {
   type: (text) => page.keyboard.type(text, { delay: 20 }),
   press: (key) => page.keyboard.press(key),
   sleep: (ms) => sleep(Number(ms) || 1000),
-  // vsix <путь> ставится до запуска VS Code (см. ниже), здесь делать уже нечего.
+  // vsix, ext и profile действуют до запуска VS Code (см. ниже), здесь делать уже нечего.
   vsix: async () => {},
+  ext: async () => {},
+  profile: async () => {},
   async ss(name) {
     const file = path.join(SHOTS, `${name || Date.now()}.png`);
     await page.screenshot({ path: file });
@@ -155,7 +165,7 @@ const COMMANDS = {
   async setting(assignment) {
     const [key, ...rest] = assignment.split('=');
     const raw = rest.join('=');
-    const file = path.join(WORK, 'profile', 'User', 'settings.json');
+    const file = path.join(profile, 'User', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(file, 'utf8'));
     try {
       settings[key] = JSON.parse(raw);
@@ -185,32 +195,46 @@ const steps = process.argv.slice(2).map((s) => {
 });
 
 const codeExe = await downloadAndUnzipVSCode({ cachePath: path.join(ROOT, '.vscode-test') });
-const profile = path.join(WORK, 'profile');
-try {
-  fs.rmSync(profile, { recursive: true, force: true });
-} catch {
-  console.error(
-    `не удалось очистить ${profile}: закрой окна VS Code, оставшиеся от прошлого прогона`,
-  );
-  process.exit(1);
+// profile <имя>: профиль, который живёт между прогонами (вход в GitHub, поставленные расширения).
+// Без него — чистый профиль на каждый прогон.
+const named = steps.find(([cmd]) => cmd === 'profile')?.[1];
+if (named !== undefined && !/^[\w-]+$/.test(named)) {
+  console.error(`имя профиля — буквы, цифры, «-» и «_», а не «${named}»`);
+  process.exit(2);
+}
+const profile = named ? path.join(WORK, 'profiles', named) : path.join(WORK, 'profile');
+if (!named) {
+  try {
+    fs.rmSync(profile, { recursive: true, force: true });
+  } catch {
+    console.error(
+      `не удалось очистить ${profile}: закрой окна VS Code, оставшиеся от прошлого прогона`,
+    );
+    process.exit(1);
+  }
 }
 fs.mkdirSync(path.join(profile, 'User'), { recursive: true });
 fs.mkdirSync(SHOTS, { recursive: true });
-fs.writeFileSync(
-  path.join(profile, 'User', 'settings.json'),
-  JSON.stringify({
-    'chat.disableAIFeatures': true,
-    'workbench.startupEditor': 'none',
-    'workbench.tips.enabled': false,
-    'update.mode': 'none',
-    'telemetry.telemetryLevel': 'off',
-  }),
-);
+const settingsFile = path.join(profile, 'User', 'settings.json');
+if (!fs.existsSync(settingsFile)) {
+  fs.writeFileSync(
+    settingsFile,
+    JSON.stringify({
+      'chat.disableAIFeatures': true,
+      'workbench.startupEditor': 'none',
+      'workbench.tips.enabled': false,
+      'update.mode': 'none',
+      'telemetry.telemetryLevel': 'off',
+    }),
+  );
+}
 
-// vsix <путь>: поставить собранный пакет в чистый профиль — проверка расширения так, как его
-// поставит пользователь (ExtensionMode.Production, без F5).
-const vsix = steps.find(([cmd]) => cmd === 'vsix')?.[1];
-if (vsix) {
+// vsix <путь>: поставить собранный пакет — проверка расширения так, как его поставит пользователь
+// (ExtensionMode.Production, без F5). ext <id>: поставить расширение из Marketplace.
+const installs = steps
+  .filter(([cmd]) => cmd === 'vsix' || cmd === 'ext')
+  .map(([cmd, arg]) => (cmd === 'vsix' ? `"${path.resolve(ROOT, arg)}"` : arg));
+if (installs.length) {
   const cli = resolveCliPathFromVSCodeExecutablePath(codeExe);
   // code.cmd на Windows запускается только через shell, поэтому пути в кавычках.
   const result = spawnSync(
@@ -218,8 +242,7 @@ if (vsix) {
     [
       `--user-data-dir="${profile}"`,
       `--extensions-dir="${path.join(profile, 'extensions')}"`,
-      '--install-extension',
-      `"${path.resolve(ROOT, vsix)}"`,
+      ...installs.flatMap((what) => ['--install-extension', what]),
     ],
     { shell: true, encoding: 'utf8' },
   );
