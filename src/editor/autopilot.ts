@@ -6,7 +6,7 @@ import { lineEdits } from './edits';
 import type { Findings } from './findings';
 import { clock, doNotDisturbUntil, setDoNotDisturb } from './mode';
 import { showReview, type Outcome, type Reviewer } from './reviewer';
-import { REVIEWED_SCHEMES, type ProjectSettings } from './settings';
+import { isDirty, REVIEWED_SCHEMES, type ProjectSettings } from './settings';
 import type { StatusBar } from './statusBar';
 import { documentSymbols } from './symbols';
 
@@ -91,6 +91,23 @@ export class Autopilot implements vscode.Disposable {
           this.settings.get(doc.uri).triggers.onSave
         ) {
           void this.trigger(doc, 'сохранение');
+        }
+      }),
+      // Ноутбук сохраняется целиком: события о сохранении его ячеек не приходят.
+      vscode.workspace.onWillSaveNotebookDocument((e) => {
+        if (e.reason === vscode.TextDocumentSaveReason.Manual) {
+          this.manualSaves.add(e.notebook.uri.toString());
+        }
+      }),
+      vscode.workspace.onDidSaveNotebookDocument((notebook) => {
+        notebook
+          .getCells()
+          .forEach((cell) => this.savedAt.set(cell.document.uri.toString(), Date.now()));
+        if (
+          this.manualSaves.delete(notebook.uri.toString()) &&
+          this.settings.get(notebook.uri).triggers.onSave
+        ) {
+          notebook.getCells().forEach((cell) => void this.trigger(cell.document, 'сохранение'));
         }
       }),
       vscode.window.onDidChangeTextEditorSelection((e) => {
@@ -202,7 +219,7 @@ export class Autopilot implements vscode.Disposable {
     }
     this.queue = this.queue.filter((job) => job.range);
 
-    if (e.reason === undefined && !doc.isDirty) {
+    if (e.reason === undefined && !isDirty(doc)) {
       // Изменился чистый документ: это первая правка человека или файл перечитан с диска
       // (git checkout и т. п.). isDirty в событии ещё старый, поэтому смотрим чуть позже:
       // после перечитывания документ так и останется чистым, хотя его никто не сохранял.
@@ -214,7 +231,7 @@ export class Autopilot implements vscode.Disposable {
       );
       setTimeout(() => {
         const savedAt = this.savedAt.get(doc.uri.toString()) ?? 0;
-        if (!doc.isDirty && !doc.isClosed && savedAt < editedAt) {
+        if (!isDirty(doc) && !doc.isClosed && savedAt < editedAt) {
           this.reloaded(doc);
           if (lines >= BIG_RELOAD_LINES) {
             this.bigReload.fire(doc);

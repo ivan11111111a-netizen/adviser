@@ -23,11 +23,20 @@ export function ownerUri(uri: vscode.Uri): vscode.Uri {
   if (uri.scheme !== NOTEBOOK_CELL_SCHEME) {
     return uri;
   }
-  const notebook = vscode.workspace.notebookDocuments.find((nb) =>
-    nb.getCells().some((cell) => cell.document.uri.toString() === uri.toString()),
-  );
-  return notebook?.uri ?? uri.with({ scheme: 'file', fragment: '' });
+  return notebookOf(uri)?.uri ?? uri.with({ scheme: 'file', fragment: '' });
 }
+
+/** Есть несохранённые правки. У ячейки isDirty всегда false: несохранённым бывает ноутбук. */
+export function isDirty(doc: vscode.TextDocument): boolean {
+  return doc.uri.scheme === NOTEBOOK_CELL_SCHEME
+    ? (notebookOf(doc.uri)?.isDirty ?? false)
+    : doc.isDirty;
+}
+
+const notebookOf = (cell: vscode.Uri) =>
+  vscode.workspace.notebookDocuments.find((nb) =>
+    nb.getCells().some((c) => c.document.uri.toString() === cell.toString()),
+  );
 
 /** Действующие настройки файла. configError — файлы проекта не разобраны, разборы стоят. */
 export type FileSettings = Settings & { configError?: string };
