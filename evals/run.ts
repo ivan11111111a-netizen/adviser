@@ -57,7 +57,8 @@ import {
 } from './judge';
 import { renderReport, type RunMeta } from './report';
 import { loadSocratic } from './socratic';
-import { summarize, withMinConfidence, type CaseResult } from './score';
+import { loadStudents } from './students';
+import { scoreCase, summarize, withMinConfidence, type CaseResult } from './score';
 
 const HELP = `npm run eval -- [параметры]
 
@@ -66,10 +67,13 @@ const HELP = `npm run eval -- [параметры]
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
-  --suite cases|socratic|check|exercise|changes
+  --suite cases|socratic|students|check|exercise|changes
                         наш набор evals/cases.json, настоящие ошибки новичков из Socratic Debugging
                         Benchmark (скачивается в evals/runs/, засчитывается место ошибки) или
                         «Проверь меня» на evals/check-cases.json (понял ли учащийся ошибку)
+  --suite students      настоящие ошибочные решения первокурсников (intro_prog, Дублин; скачивается
+                        в evals/runs/): место ошибки — строки, которые исправил преподаватель;
+                        над решением — условие и проверки задачи, с --no-tests — только условие
   --suite exercise      упражнения на evals/exercise-cases.json: модель пишет функцию с ошибкой
                         заданного типа, наставник (--prompt) её разбирает
   --suite changes       «Понимаю ли я изменения» на evals/changes-cases.json: вопросы по изменению
@@ -115,6 +119,7 @@ const { values: args } = parseArgs({
     concurrency: { type: 'string', default: '3' },
     rescore: { type: 'string' },
     'min-confidence': { type: 'string' },
+    'no-tests': { type: 'boolean' },
     help: { type: 'boolean' },
   },
 });
@@ -140,7 +145,9 @@ if (args.suite === 'changes') {
 const suite =
   args.suite === 'socratic'
     ? (await loadSocratic(ROOT)).cases
-    : parseCases(JSON.parse(read('evals', 'cases.json')));
+    : args.suite === 'students'
+      ? await loadStudents(ROOT, !args['no-tests'])
+      : parseCases(JSON.parse(read('evals', 'cases.json')));
 const cases = suite.filter((c) => !args.only || c.file.includes(args.only));
 
 const record = args.rescore
@@ -162,7 +169,7 @@ async function review(): Promise<RunRecord> {
   const patterns = parsePatterns(JSON.parse(read('patterns', 'patterns.json')));
   const now = new Date();
   const record: RunRecord = {
-    id: `${stamp(now)}-${args.suite === 'socratic' ? 'socratic-' : ''}${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}`.replace(
+    id: `${stamp(now)}-${args.suite === 'cases' ? '' : `${args.suite}-`}${args.provider}-${args.model}-${args.prompt}${profile ? '-profile' : ''}${args['no-tests'] ? '-no-tests' : ''}`.replace(
       /[^\w.-]+/g,
       '_',
     ),
@@ -268,6 +275,18 @@ function save(record: RunRecord) {
     `\nпо делу ${Math.round(s.precision * 100)}% · нашлось ${Math.round(s.recall * 100)}% · ` +
       `тишина ${s.silent} из ${s.clean}${judged} · не ответила ${s.failed} · медиана ${s.medianSeconds.toFixed(1)} с`,
   );
+  if (args.suite === 'students') {
+    // Ошибок в решении бывает несколько: сколько решений, где нашлась хотя бы одна.
+    const answered = results.filter((r) => r.issues);
+    const some = answered.filter(
+      (r) => scoreCase(r.evalCase, r.issues!).missed.length < r.evalCase.expect.length,
+    ).length;
+    const other = answered.flatMap((r) => r.issues!).filter((i) => i.patternId === 'other');
+    console.log(
+      `решений, где нашлась хотя бы одна правка преподавателя: ${some} из ${answered.length} · ` +
+        `замечаний с типом other: ${other.length} из ${s.issues}`,
+    );
+  }
   console.log(`отчёт: ${path.relative(ROOT, reportFile)}`);
 }
 
