@@ -131,6 +131,25 @@ const SIGN_IN_COMMANDS = [
 /** Сколько ждать, пока человек войдёт в GitHub, чтобы сразу предложить выбрать модель. */
 const SIGN_IN_WAIT_MS = 5 * 60_000;
 
+let waitingForModels: Promise<boolean> | undefined;
+
+/** true — модели Copilot появились (человек вошёл), false — не дождались. */
+function modelsAppear(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => {
+      listener.dispose();
+      resolve(false);
+    }, SIGN_IN_WAIT_MS);
+    const listener = vscode.lm.onDidChangeChatModels(async () => {
+      if ((await vscode.lm.selectChatModels({ vendor: 'copilot' })).length) {
+        clearTimeout(timer);
+        listener.dispose();
+        resolve(true);
+      }
+    });
+  });
+}
+
 /**
  * Моделей Copilot нет. В свежем VS Code Copilot встроен и ждёт только входа в GitHub; если ИИ
  * в VS Code выключен (chat.disableAIFeatures), моделей не будет и после входа. В Cursor и старых
@@ -165,22 +184,14 @@ async function noModels() {
       action,
     );
     if (answer === action) {
-      // Модели появятся после входа — тогда сразу предлагаем выбрать.
-      const appeared = new Promise<boolean>((resolve) => {
-        const timer = setTimeout(() => {
-          listener.dispose();
-          resolve(false);
-        }, SIGN_IN_WAIT_MS);
-        const listener = vscode.lm.onDidChangeChatModels(async () => {
-          if ((await vscode.lm.selectChatModels({ vendor: 'copilot' })).length) {
-            clearTimeout(timer);
-            listener.dispose();
-            resolve(true);
-          }
-        });
-      });
+      // Модели появятся после входа — тогда сразу предлагаем выбрать. Окно выбора — одно,
+      // даже если «Войти» нажали снова, пока ждём.
+      const first = !waitingForModels;
+      const appeared = (waitingForModels ??= modelsAppear().finally(
+        () => (waitingForModels = undefined),
+      ));
       await vscode.commands.executeCommand(signIn);
-      if (await appeared) {
+      if (first && (await appeared)) {
         await setupCopilot();
       }
     }
