@@ -65,6 +65,7 @@ const HELP = `npm run eval -- [параметры]
   --provider claude-code|openai-compatible|mock   по умолчанию claude-code (только для разработки)
   --model <id>          кто разбирает код, по умолчанию sonnet
   --judge <id>          модель-судья намёков у того же провайдера; без параметра судьи нет
+  --judge-prompt <версия> промпт судьи из evals/, по умолчанию ${JUDGE_PROMPT_VERSION}
   --base-url <url>      для openai-compatible, по умолчанию OpenRouter; ключ — в ADVISER_API_KEY
   --language ru|en      язык советов, по умолчанию ru
   --suite cases|socratic|students|check|exercise|changes
@@ -120,6 +121,7 @@ const { values: args } = parseArgs({
     rescore: { type: 'string' },
     'min-confidence': { type: 'string' },
     'no-tests': { type: 'boolean' },
+    'judge-prompt': { type: 'string', default: JUDGE_PROMPT_VERSION },
     help: { type: 'boolean' },
   },
 });
@@ -199,7 +201,7 @@ async function review(): Promise<RunRecord> {
     // Как в расширении: намёк, который называет новое из решения, убирается (src/core/hintGuard.ts).
     const issues = result.ok
       ? normalizePatternIds(result.review, patterns).review.issues.map((issue) =>
-          hintLeak(issue.hint, issue.fix.code, code) ? { ...issue, hint: '' } : issue,
+          hintLeak(issue.hint, issue.fix.code, code, languageId) ? { ...issue, hint: '' } : issue,
         )
       : undefined;
     record.results.push({
@@ -219,13 +221,14 @@ async function review(): Promise<RunRecord> {
 
 /** Оценки судьи дописываются в прогон; уже оценённые этой же моделью случаи не переоцениваются. */
 async function judge(record: RunRecord, model: string) {
-  const judgeName = `${model}, ${JUDGE_PROMPT_VERSION}`;
+  const version = args['judge-prompt']!;
+  const judgeName = `${model}, ${version}`;
   if (record.judge !== judgeName) {
     record.results.forEach((r) => delete r.judgments);
     record.judge = judgeName;
   }
   const provider = createProvider(args.provider!, model);
-  const system = read('evals', `${JUDGE_PROMPT_VERSION}.md`);
+  const system = read('evals', `${version}.md`);
   const wanted = new Set(cases.map((c) => c.file));
   const todo = record.results.filter(
     (r) => wanted.has(r.file) && r.issues && !r.judgments && judgedIndexes(r.issues).length,
@@ -331,7 +334,8 @@ async function checks() {
       record.got = result.data.understood;
       record.feedback = result.data.feedback;
       record.leak =
-        (!result.data.understood && hintLeak(result.data.feedback, evalCase.issue.fix, code)) ||
+        (!result.data.understood &&
+          hintLeak(result.data.feedback, evalCase.issue.fix, code, languageIdOf(evalCase.file)!)) ||
         undefined;
     } else {
       record.error = result.error;

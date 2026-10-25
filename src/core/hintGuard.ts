@@ -23,20 +23,50 @@ const OPERATORS = ['===', '!==', '?.', '??', '??=', '//', '**'];
 
 const identifiers = (text: string) => new Set(text.match(/[A-Za-z_$][\w$]*/g) ?? []);
 
+const STRINGS = [
+  String.raw`"""[\s\S]*?"""`,
+  String.raw`'''[\s\S]*?'''`,
+  String.raw`"(?:\\.|[^"\\\n])*"`,
+  String.raw`'(?:\\.|[^'\\\n])*'`,
+  String.raw`\x60(?:\\.|[^\x60\\])*\x60`,
+];
+
+/**
+ * Код без комментариев и строк: слова в них — речь, а не имена. Иначе «what» из комментария
+ * решения «// what if the list is empty» сочлось бы новым именем, и пропал бы любой намёк со
+ * словом What. Комментарий в Python — #, а // в нём — деление нацело.
+ */
+export function stripCommentsAndStrings(text: string, languageId: string): string {
+  const comments =
+    languageId === 'python'
+      ? [String.raw`#[^\n]*`]
+      : [String.raw`\/\/[^\n]*`, String.raw`\/\*[\s\S]*?\*\/`];
+  // Слева направо: # внутри строки — часть строки, апостроф в комментарии — часть комментария.
+  return text.replace(new RegExp([...STRINGS, ...comments].join('|'), 'g'), ' ');
+}
+
 /** Что есть в решении и нет в коде: имена длиннее двух букв и «говорящие» операторы. */
-export function newInFix(fixCode: string, code: string): string[] {
+export function newInFix(fixCode: string, code: string, languageId: string): string[] {
+  const fix = stripCommentsAndStrings(fixCode, languageId);
+  const own = stripCommentsAndStrings(code, languageId);
+  // Слова из комментариев учащегося — тоже его: их появление в решении ничего не выдаёт.
   const before = identifiers(code);
-  const names = [...identifiers(fixCode)].filter(
+  const names = [...identifiers(fix)].filter(
     (name) => name.length > 2 && !COMMON.has(name) && !before.has(name),
   );
-  const operators = OPERATORS.filter((op) => fixCode.includes(op) && !code.includes(op));
+  const operators = OPERATORS.filter((op) => fix.includes(op) && !own.includes(op));
   return [...names, ...operators];
 }
 
 /** Намёк выдаёт ответ: называет новое из решения. Возвращает, что именно, — для лога. */
-export function hintLeak(hint: string, fixCode: string, code: string): string | undefined {
+export function hintLeak(
+  hint: string,
+  fixCode: string,
+  code: string,
+  languageId: string,
+): string | undefined {
   const hintNames = identifiers(hint);
-  return newInFix(fixCode, code).find((token) =>
+  return newInFix(fixCode, code, languageId).find((token) =>
     /^[A-Za-z_$]/.test(token) ? hintNames.has(token) : hint.includes(token),
   );
 }

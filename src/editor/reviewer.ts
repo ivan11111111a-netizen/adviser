@@ -245,7 +245,7 @@ export class Reviewer {
     const review = {
       ...normalized.review,
       issues: normalized.review.issues.map((issue) => {
-        const leak = hintLeak(issue.hint, issue.fix.code, code);
+        const leak = hintLeak(issue.hint, issue.fix.code, code, doc.languageId);
         if (!leak) {
           return issue;
         }
@@ -306,7 +306,7 @@ export class Reviewer {
     const { understood } = asked.data;
     let { feedback } = asked.data;
     // Отзыв на неверный ответ — новый вопрос, а не решение: если выдаёт решение, заменяем.
-    const leak = !understood && hintLeak(feedback, issue.fix.code, code);
+    const leak = !understood && hintLeak(feedback, issue.fix.code, code, doc.languageId);
     if (leak) {
       this.log.info(`${issue.patternId}: the feedback gave the answer away ("${leak}"), replaced`);
       feedback = checkFallback(asked.language);
