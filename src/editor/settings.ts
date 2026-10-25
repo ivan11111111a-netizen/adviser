@@ -93,10 +93,12 @@ export class ProjectSettings implements vscode.Disposable {
     const uri = cellOrFile && ownerUri(cellOrFile);
     const folder = uri && vscode.workspace.getWorkspaceFolder(uri);
     const loaded = folder ? this.loaded.get(folder.uri.toString()) : undefined;
-    const config = vscode.workspace.getConfiguration('adviser', uri);
+    // Настройки VS Code у Adviser — уровня окна (scope window): по файлу их не читаем,
+    // иначе VS Code пишет предупреждение в лог. Проектное — в .adviser/config.json.
+    const config = vscode.workspace.getConfiguration('adviser');
     const user = {
       mode: currentMode(),
-      level: currentLevel(uri),
+      level: currentLevel(),
       language: config.get<string>('language', 'auto'),
       hiddenPatterns: config.get<string[]>('hiddenPatterns', []),
     };

@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { LEVELS, type Level } from '../core/promptBuilder';
 import { MODES, type Mode } from '../core/scheduler';
 
-export function currentLevel(scope?: vscode.Uri): Level {
-  const value = vscode.workspace.getConfiguration('adviser', scope).get<string>('level');
+export function currentLevel(): Level {
+  const value = vscode.workspace.getConfiguration('adviser').get<string>('level');
   return LEVELS.find((l) => l === value) ?? 'beginner';
 }
 

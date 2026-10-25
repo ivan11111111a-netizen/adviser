@@ -125,9 +125,7 @@ function solutionWaitFor(journal: Journal, finding: Finding): number {
   if (!entry || finding.presentation === 'reviewer') {
     return 0;
   }
-  const setting = vscode.workspace
-    .getConfiguration('adviser', finding.uri)
-    .get<string>('solutionDelay', 'auto');
+  const setting = vscode.workspace.getConfiguration('adviser').get<string>('solutionDelay', 'auto');
   const now = Date.now();
   return solutionDelayActive(journal.all(), now, setting) ? solutionWait(entry, now) : 0;
 }
