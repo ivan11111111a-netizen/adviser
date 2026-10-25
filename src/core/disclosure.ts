@@ -21,6 +21,21 @@ export type Presentation = 'mentor' | 'reviewer';
 export const hasHint = (issue: Pick<Issue, 'category' | 'hint'>) =>
   issue.category !== 'security' && issue.hint.trim() !== '';
 
+/**
+ * Сначала ошибки, потом советы: пока в функции есть critical или warning, советы (suggestion)
+ * придерживаются до разбора, в котором ошибок не останется. Eval на настоящих решениях студентов
+ * (этап 10): почти весь шум — законный совет рядом с настоящей ошибкой; без таких советов
+ * «по делу» 95% вместо 85%, и ни одна правка преподавателя не теряется.
+ */
+export function holdSuggestions<T extends Pick<Issue, 'severity'>>(
+  issues: T[],
+): { shown: T[]; held: T[] } {
+  const suggestion = (i: T) => i.severity === 'suggestion';
+  return issues.every(suggestion)
+    ? { shown: issues, held: [] }
+    : { shown: issues.filter((i) => !suggestion(i)), held: issues.filter(suggestion) };
+}
+
 /** Какую ступень видно сразу: без намёка — объяснение, ревьюеру — всё сразу. */
 export function firstStep(
   issue: Pick<Issue, 'category' | 'hint'>,

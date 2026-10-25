@@ -8,7 +8,7 @@ import {
 import { cacheKey, LruCache } from '../core/cache';
 import { applyCourse, applyCourseText } from '../core/course';
 import { toFileLines, type LineRange } from '../core/codeRange';
-import type { Presentation } from '../core/disclosure';
+import { holdSuggestions, type Presentation } from '../core/disclosure';
 import {
   ProviderRefusal,
   runReview,
@@ -81,7 +81,14 @@ const textOf = (doc: vscode.TextDocument, range: LineRange) =>
   doc.getText(new vscode.Range(range.start, 0, range.end, doc.lineAt(range.end).text.length));
 
 export type Outcome =
-  | { kind: 'reviewed'; review: Review; cached: boolean; presentation: Presentation }
+  | {
+      kind: 'reviewed';
+      review: Review;
+      /** Советы, придержанные до разбора без ошибок (holdSuggestions). */
+      held: Issue[];
+      cached: boolean;
+      presentation: Presentation;
+    }
   /**
    * Разбирать нельзя: провайдер не настроен, файл не отправляется или модель отказала (нет
    * доступа, исчерпан лимит). message — для статус-бара.
@@ -183,7 +190,7 @@ export class Reviewer {
         ? { kind: 'aborted' }
         : {
             kind: 'reviewed',
-            review: shown(cached, settings),
+            ...shown(cached, settings),
             cached: true,
             presentation: presentationOf(settings),
           };
@@ -256,7 +263,7 @@ export class Reviewer {
     this.cache.set(cacheKey(configured.id, request.system, request.prompt), review);
     return {
       kind: 'reviewed',
-      review: shown(review, settings),
+      ...shown(review, settings),
       cached: false,
       presentation: presentationOf(settings),
     };
@@ -527,40 +534,45 @@ export class Reviewer {
 const refusalText = (e: ProviderRefusal) =>
   e.cause instanceof Error ? `${e.message} (${e.cause.message})` : e.message;
 
-/** В кэше — полный ответ, а фильтры проекта применяем при показе: их можно поменять на ходу. */
-const shown = (review: Review, settings: Settings): Review => ({
-  ...review,
-  issues: filterIssues(review.issues, settings).map((i) => applyCourse(i, settings.course)),
-});
+/**
+ * В кэше — полный ответ, а фильтры проекта применяем при показе: их можно поменять на ходу.
+ * Советы при ошибках придерживаются: сначала ошибки, потом советы.
+ */
+function shown(review: Review, settings: Settings): { review: Review; held: Issue[] } {
+  const issues = filterIssues(review.issues, settings).map((i) => applyCourse(i, settings.course));
+  const { shown: visible, held } = holdSuggestions(issues);
+  return { review: { ...review, issues: visible }, held };
+}
 
 /** В режиме «Ревьюер» ступеней нет — всё сразу; в остальных — по ступеням. */
 const presentationOf = (settings: Settings): Presentation =>
   settings.mode === 'reviewer' ? 'reviewer' : 'mentor';
 
-/** Замечания разобранного диапазона — в подчёркивания и hover; прежние в этом диапазоне уходят. */
+/**
+ * Замечания разобранного диапазона — в подчёркивания и hover; прежние в этом диапазоне уходят.
+ * held — придержанные советы: на экран не идут, но и исправленными не считаются.
+ */
 export function showReview(
   findings: Findings,
   doc: vscode.TextDocument,
   range: LineRange,
   issues: Issue[],
   presentation: Presentation,
+  held: Issue[] = [],
 ) {
-  findings.replace(
-    doc.uri,
-    range,
-    issues.map((issue) => {
-      const lines = toFileLines(issue, range);
-      return {
-        issue,
-        languageId: doc.languageId,
-        presentation,
-        range: new vscode.Range(
-          lines.start,
-          doc.lineAt(lines.start).firstNonWhitespaceCharacterIndex,
-          lines.end,
-          doc.lineAt(lines.end).text.length,
-        ),
-      };
-    }),
-  );
+  const toFinding = (issue: Issue) => {
+    const lines = toFileLines(issue, range);
+    return {
+      issue,
+      languageId: doc.languageId,
+      presentation,
+      range: new vscode.Range(
+        lines.start,
+        doc.lineAt(lines.start).firstNonWhitespaceCharacterIndex,
+        lines.end,
+        doc.lineAt(lines.end).text.length,
+      ),
+    };
+  };
+  findings.replace(doc.uri, range, issues.map(toFinding), held.map(toFinding));
 }

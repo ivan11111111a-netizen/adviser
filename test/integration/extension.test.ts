@@ -19,17 +19,16 @@ suite('Разбор функции', () => {
 
     await vscode.commands.executeCommand('adviser.reviewFunction');
 
-    // В mock-ответе warning на строке 2 функции и suggestion на всю функцию; функция с 0-й строки файла.
-    const [diagnostic, suggestion, ...rest] = vscode.languages.getDiagnostics(doc.uri);
+    // В mock-ответе warning на строке 2 функции и suggestion на всю функцию; функция с 0-й строки
+    // файла. Совет при ошибке придерживается: сначала ошибки, потом советы.
+    const [diagnostic, ...rest] = vscode.languages.getDiagnostics(doc.uri);
     assert.strictEqual(rest.length, 0);
-    assert.strictEqual(suggestion.severity, vscode.DiagnosticSeverity.Hint);
     assert.strictEqual(diagnostic.source, 'Adviser');
     assert.strictEqual(diagnostic.range.start.line, 1);
     assert.strictEqual(diagnostic.range.start.character, 2);
     assert.strictEqual(diagnostic.severity, vscode.DiagnosticSeverity.Information);
     assert.match(diagnostic.message, /Mock-намёк/);
 
-    // Внутри suggestion, но дальше двух первых символов: VS Code его текст здесь не покажет, и мы тоже.
     const at = new vscode.Position(1, 5);
     let text = await hoverText(doc.uri, at);
     assert.doesNotMatch(text, /Mock-объяснение|Mock-пример|исправленный код|«/);
@@ -45,6 +44,14 @@ suite('Разбор функции', () => {
     assert.match(text, /исправленный код/);
     assert.doesNotMatch(text, /\[Объяснить\]|\[Показать решение\]|совета/);
 
+    // Ошибку исправили — при новом разборе появляется совет, который ждал.
+    await editor.edit((e) => e.insert(new vscode.Position(1, 0), '  // mock: style\n'));
+    await vscode.commands.executeCommand('adviser.reviewFunction');
+    const [suggestion, ...others] = vscode.languages.getDiagnostics(doc.uri);
+    assert.strictEqual(others.length, 0);
+    assert.strictEqual(suggestion.severity, vscode.DiagnosticSeverity.Hint);
+    // Внутри совета, но дальше двух первых символов: VS Code его текст здесь не покажет, и мы тоже.
+    assert.doesNotMatch(await hoverText(doc.uri, new vscode.Position(2, 5)), /совета|Mock-совет/);
     const dots = new vscode.Position(0, 1);
     text = await hoverText(doc.uri, dots);
     await click(text, 'Объяснить');

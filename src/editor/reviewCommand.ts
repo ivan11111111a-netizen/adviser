@@ -33,7 +33,7 @@ export async function reviewFunction(
   switch (outcome.kind) {
     case 'reviewed': {
       const { issues } = outcome.review;
-      showReview(findings, doc, range, issues, outcome.presentation);
+      showReview(findings, doc, range, issues, outcome.presentation, outcome.held);
       onReviewed(doc, code);
       status.flash(
         issues.length ? vscode.l10n.t('issues: {0}', issues.length) : vscode.l10n.t('no issues'),

@@ -451,6 +451,7 @@ export class Autopilot implements vscode.Disposable {
             job.range,
             outcome.review.issues,
             outcome.presentation,
+            outcome.held,
           );
         }
         return;

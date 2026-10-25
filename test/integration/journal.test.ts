@@ -28,7 +28,10 @@ interface TestApi {
   journalView: vscode.TreeDataProvider<Node>;
 }
 
-/** Разбор командой новой безымянной функции; mock даёт empty-collection на строке 2 и unclear-name. */
+/**
+ * Разбор командой новой безымянной функции; mock даёт empty-collection на строке 2 и совет
+ * unclear-name — он придерживается, пока в функции есть ошибка.
+ */
 async function reviewNew(content = 'function first(items) {\n  return items[0].price;\n}\n') {
   const doc = await vscode.workspace.openTextDocument({ language: 'javascript', content });
   const editor = await vscode.window.showTextDocument(doc);
@@ -60,10 +63,7 @@ suite('Журнал ошибок', () => {
     const added = api.journal.all().slice(before);
     assert.deepStrictEqual(
       added.map((e) => [e.patternId, e.step, e.file, e.line]),
-      [
-        ['empty-collection', 1, doc.uri.toString(), 1],
-        ['unclear-name', 1, doc.uri.toString(), 0],
-      ],
+      [['empty-collection', 1, doc.uri.toString(), 1]],
     );
 
     const at = new vscode.Position(1, 5);
@@ -72,7 +72,7 @@ suite('Журнал ошибок', () => {
 
     // Тот же код ещё раз: те же случаи, открытая ступень сохраняется.
     await vscode.commands.executeCommand('adviser.reviewFunction');
-    assert.strictEqual(api.journal.all().length, before + 2);
+    assert.strictEqual(api.journal.all().length, before + 1);
     assert.match(await hoverText(doc.uri, at), /Mock-объяснение/);
 
     // Код исправлен: mock больше не находит ошибок — случаи закрыты.
@@ -145,7 +145,7 @@ suite('Журнал ошибок', () => {
 
   test('правка строк замечания прячет его до нового разбора, а разбор продолжает тот же случай', async () => {
     const { doc, editor } = await reviewNew();
-    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 1);
     const before = api.journal.all().length;
 
     await editor.edit((e) => e.insert(new vscode.Position(1, 24), ' // цена'));
@@ -153,11 +153,11 @@ suite('Журнал ошибок', () => {
     assert.strictEqual((await hoverText(doc.uri, new vscode.Position(1, 5))).trim(), '');
 
     await vscode.commands.executeCommand('adviser.reviewFunction');
-    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 2);
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 1);
     assert.strictEqual(api.journal.all().length, before, 'новых случаев нет — это те же');
   });
 
-  test('лампочка: «понял» прячет замечание и пишет ответ в журнал, «не показывать» скрывает тип', async () => {
+  test('лампочка: «понял» прячет замечание и пишет ответ в журнал, «не показывать» скрывает тип и больше не держит советы', async () => {
     const { doc } = await reviewNew();
     const at = new vscode.Range(1, 5, 1, 5);
     const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
@@ -175,26 +175,26 @@ suite('Журнал ошибок', () => {
     await vscode.commands.executeCommand(understood.command, ...understood.arguments!);
     const id = (understood.arguments![0] as { id: string }).id;
     assert.strictEqual(api.journal.get(id)?.feedback, 'understood');
-    assert.deepStrictEqual(
-      vscode.languages.getDiagnostics(doc.uri).map((d) => d.code),
-      ['unclear-name'],
-    );
-    // Повторный разбор того же кода ответ помнит: замечание не возвращается.
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+    // Повторный разбор того же кода ответ помнит: замечание не возвращается. Совет ждёт:
+    // код тот же, ошибка в нём осталась.
     await vscode.commands.executeCommand('adviser.reviewFunction');
-    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 1);
+    assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
 
     const config = vscode.workspace.getConfiguration('adviser');
     try {
-      await vscode.commands.executeCommand('adviser.hidePattern', { patternId: 'unclear-name' });
+      await vscode.commands.executeCommand('adviser.hidePattern', {
+        patternId: 'empty-collection',
+      });
       // Объект настроек — снимок: после update его надо взять заново.
       assert.deepStrictEqual(vscode.workspace.getConfiguration('adviser').get('hiddenPatterns'), [
-        'unclear-name',
+        'empty-collection',
       ]);
-      assert.strictEqual(vscode.languages.getDiagnostics(doc.uri).length, 0);
+      // Скрытый тип ошибки советы не держит: в новом разборе виден совет.
       const { doc: next } = await reviewNew();
       assert.deepStrictEqual(
         vscode.languages.getDiagnostics(next.uri).map((d) => d.code),
-        ['empty-collection'],
+        ['unclear-name'],
       );
     } finally {
       await config.update('hiddenPatterns', undefined, vscode.ConfigurationTarget.Global);
@@ -297,6 +297,6 @@ suite('Журнал ошибок', () => {
     await api.journal.clear();
     assert.strictEqual(api.journal.all().length, 0);
     await reviewNew();
-    assert.strictEqual(api.journal.all().length, 2);
+    assert.strictEqual(api.journal.all().length, 1);
   });
 });

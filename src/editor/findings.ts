@@ -68,8 +68,10 @@ export class Findings implements vscode.Disposable {
    * Заменяет замечания в разобранном диапазоне, замечания по другим функциям файла остаются.
    * Тот же тип ошибки в том же диапазоне — тот же случай: сохраняет id и открытую ступень.
    * Прежние замечания, которых в новом разборе нет, журнал считает исправленными.
+   * held — придержанные советы (holdSuggestions): новые не показываются и в журнал не идут,
+   * а уже показанные прячутся, но остаются случаями — они не исправлены.
    */
-  replace(uri: vscode.Uri, reviewed: LineRange, findings: NewFinding[]) {
+  replace(uri: vscode.Uri, reviewed: LineRange, findings: NewFinding[], held: NewFinding[] = []) {
     const all = this.byUri.get(uri.toString()) ?? [];
     const outside = (f: Finding) =>
       f.range.end.line < reviewed.start || f.range.start.line > reviewed.end;
@@ -84,7 +86,7 @@ export class Findings implements vscode.Disposable {
     ];
     const { matched, resolved } = matchByPattern(
       previous,
-      findings.map((f) => f.issue.patternId),
+      [...findings, ...held].map((f) => f.issue.patternId),
       (p) => p.patternId,
     );
     const now = Date.now();
@@ -116,10 +118,14 @@ export class Findings implements vscode.Disposable {
       }
       return finding;
     });
+    const kept = held.flatMap((f, i): Finding[] => {
+      const before = all.find((p) => p.id === matched[findings.length + i]?.id);
+      return before ? [{ ...before, ...f, id: before.id, step: before.step, hidden: true }] : [];
+    });
     for (const f of resolved) {
       this.journal.update(f.id, { resolvedAt: now });
     }
-    this.byUri.set(uri.toString(), [...all.filter(outside), ...added]);
+    this.byUri.set(uri.toString(), [...all.filter(outside), ...added, ...kept]);
     this.show(uri);
   }
 

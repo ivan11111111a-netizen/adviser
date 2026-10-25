@@ -59,32 +59,32 @@ suite('Автопилот', () => {
 
     await editor.edit((e) => e.insert(new vscode.Position(5, 0), '  const second = items[1];\n'));
     await save();
-    // b теперь на строках 4–7. Mock: warning на 2-й строке функции, suggestion с 1-й.
+    // b теперь на строках 4–7. Mock: warning на 2-й строке функции; совет при ошибке придерживается.
     const lines = await waitFor(() => {
       const found = adviserLines(doc.uri);
       return found.length ? found : undefined;
     });
-    assert.deepStrictEqual(lines, [4, 5]);
+    assert.deepStrictEqual(lines, [5]);
 
     await editor.edit((e) => e.insert(new vscode.Position(1, 0), '  // первый элемент\n'));
     await save();
     await sleep(1500);
     // Замечания b едут вместе с текстом.
-    assert.deepStrictEqual(adviserLines(doc.uri), [5, 6], 'правка только в комментарии');
+    assert.deepStrictEqual(adviserLines(doc.uri), [6], 'правка только в комментарии');
 
     await config().update('mode', 'manual', vscode.ConfigurationTarget.Global);
     await editor.edit((e) => e.insert(new vscode.Position(2, 0), '  items.sort();\n'));
     await save();
     await sleep(1500);
-    assert.deepStrictEqual(adviserLines(doc.uri), [6, 7], 'режим «Вручную»');
+    assert.deepStrictEqual(adviserLines(doc.uri), [7], 'режим «Вручную»');
 
     // Снова «Наставник»: изменённая функция a ждала и разбирается при следующем сохранении.
     await config().update('mode', 'mentor', vscode.ConfigurationTarget.Global);
     await editor.edit((e) => e.insert(new vscode.Position(3, 0), '  // конец\n'));
     await save();
-    await waitFor(() => (adviserLines(doc.uri).includes(0) ? true : undefined));
+    await waitFor(() => (adviserLines(doc.uri).includes(1) ? true : undefined));
     // У a свои замечания, замечания b на месте: разбор a не принял их за свои.
-    assert.deepStrictEqual(adviserLines(doc.uri), [0, 1, 7, 8]);
+    assert.deepStrictEqual(adviserLines(doc.uri), [1, 8]);
   });
 
   test('файл перечитан с диска (git checkout) — это не правки человека', async () => {

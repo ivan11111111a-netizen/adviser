@@ -28,12 +28,13 @@ suite('Настройки проекта', () => {
       .update('mode', undefined, vscode.ConfigurationTarget.Global);
   });
 
-  test('minSeverity: warning — совет (suggestion) не показывается', async () => {
+  test('minSeverity: warning — совет (suggestion) не показывается, даже когда ошибок нет', async () => {
     const doc = await reviewIn('cart.js');
     assert.deepStrictEqual(
       adviser(doc.uri).map((d) => d.code),
       ['empty-collection'],
     );
+    assert.strictEqual(adviser((await reviewIn('style.js')).uri).length, 0);
   });
 
   test('правила курса: решение с запретным словом скрыто — кнопки «Показать решение» нет', async () => {

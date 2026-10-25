@@ -39,6 +39,9 @@ export const mockReview: Review = {
 /** Код с этой меткой mock считает исправленным: замечаний нет. */
 export const MOCK_CLEAN = 'mock: clean';
 
+/** С этой меткой ошибок нет, остался только совет: при ошибке советы придерживаются. */
+export const MOCK_STYLE = 'mock: style';
+
 /** Последний запрос к mock: тесты смотрят, что ушло бы модели. */
 export let lastMockRequest: ModelRequest | undefined;
 
@@ -85,8 +88,12 @@ export const mockProvider: Provider = {
           : 'Mock: пока нет. Что здесь будет с пустыми данными?',
       };
     }
-    return request.prompt.includes(MOCK_CLEAN)
-      ? { summary: 'Mock: замечаний нет.', issues: [] }
-      : structuredClone(mockReview);
+    if (request.prompt.includes(MOCK_CLEAN)) {
+      return { summary: 'Mock: замечаний нет.', issues: [] };
+    }
+    if (request.prompt.includes(MOCK_STYLE)) {
+      return { summary: 'Mock: только совет.', issues: [structuredClone(mockReview.issues[1])] };
+    }
+    return structuredClone(mockReview);
   },
 };

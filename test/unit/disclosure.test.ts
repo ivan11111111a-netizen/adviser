@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   diagnosticText,
   firstStep,
+  holdSuggestions,
   hoverView,
   reveal,
   shortQuote,
@@ -14,6 +15,27 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
   severity: 'warning',
   readMore: 'https://developer.mozilla.org/ru/',
   ...over,
+});
+
+describe('сначала ошибки, потом советы', () => {
+  const s = (severity: Issue['severity'], patternId: string = severity) => ({
+    severity,
+    patternId,
+  });
+
+  test('есть critical или warning — советы придерживаются', () => {
+    const issues = [s('critical'), s('suggestion', 'unclear-name'), s('warning')];
+    expect(holdSuggestions(issues)).toEqual({
+      shown: [s('critical'), s('warning')],
+      held: [s('suggestion', 'unclear-name')],
+    });
+  });
+
+  test('ошибок нет — советы показываются; пустой разбор — пустой', () => {
+    const issues = [s('suggestion', 'a'), s('suggestion', 'b')];
+    expect(holdSuggestions(issues)).toEqual({ shown: issues, held: [] });
+    expect(holdSuggestions([])).toEqual({ shown: [], held: [] });
+  });
 });
 
 describe('первая ступень', () => {
