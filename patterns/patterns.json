@@ -86,6 +86,13 @@
       }
     },
     {
+      "id": "boolean-as-string",
+      "title": {
+        "ru": "строка 'True' или \"false\" вместо логического значения",
+        "en": "a string like 'True' or \"false\" instead of a boolean value"
+      }
+    },
+    {
       "id": "mutating-input",
       "title": {
         "ru": "функция меняет переданный ей объект или список",
