@@ -10,7 +10,7 @@ Note: with free models the provider may use requests to train its models. This i
 
 ## Through GitHub Copilot
 
-If you have GitHub Copilot, no key is needed: Adviser uses Copilot models through VS Code. Students can get Copilot for free through GitHub Education. Requests count against your Copilot plan. This path does not work in Cursor and Windsurf.
+No key is needed: Adviser uses Copilot models through VS Code. Recent VS Code has Copilot built in — you only need to sign in to GitHub, and the sign-in button will appear. Students can get Copilot for free through GitHub Education. The free Copilot plan has a small monthly limit: in the Mentor mode it runs out quickly. Requests count against your Copilot plan. This path does not work in Cursor and Windsurf.
 
 ## 2. Locally: Ollama
 

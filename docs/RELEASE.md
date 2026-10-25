@@ -2,14 +2,12 @@
 
 ## Выпуск на GitHub Releases (предварительные выпуски, раздача однокурсникам)
 
-Всё готово, нужен только тег.
+Первый выпуск — v0.7.0, 2026-10-23: workflow отработал, на Releases есть предварительный выпуск с `.vsix`.
 
-1. Слить ветки этапов в `main` (сейчас они идут цепочкой `stage-0` → … → `stage-8`, а `main` их не содержит).
-2. Проверить, что версия в `package.json` и раздел в `CHANGELOG.md` совпадают (сейчас 0.7.0).
-3. `git tag v0.7.0` и `git push origin v0.7.0`.
+1. Ветка этапа слита в `main` (fast-forward), CI на `main` зелёный.
+2. Версия в `package.json` и раздел `## X.Y.Z` в `CHANGELOG.md` совпадают.
+3. `git tag vX.Y.Z` и `git push origin vX.Y.Z`.
 4. Workflow `Release` (`.github/workflows/release.yml`) прогонит линт и юнит-тесты, проверит версию, соберёт `.vsix` и выпустит его. Нечётная минорная цифра — предварительный выпуск, текст берётся из раздела CHANGELOG.
-
-Этот workflow ещё ни разу не запускался: на первом выпуске проверь страницу Releases.
 
 ## Перед публикацией в Marketplace и Open VSX (v1.0)
 
@@ -26,7 +24,7 @@
 
 ```sh
 npm run package:vsix
-node .claude/skills/run-vscode/driver.mjs "vsix adviser-0.7.0.vsix" "sleep 4000" "ss installed"
+node .claude/skills/run-vscode/driver.mjs "vsix adviser-<версия>.vsix" "sleep 4000" "ss installed"
 ```
 
 Драйвер ставит пакет в чистый профиль: расширение работает так, как у пользователя (mock и `claude-code` выключены), и сам открывается мастер первого запуска.
