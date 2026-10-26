@@ -5,7 +5,8 @@ import { runStructured, type ModelRequest, type Provider } from '../src/core/eng
 import { numberLines } from '../src/core/promptBuilder';
 import type { Issue } from '../src/core/reviewSchema';
 
-export const JUDGE_PROMPT_VERSION = 'judge.v1';
+/** v2 — как v1, но «наводит» сверяется только со своей проблемой (docs/evals/README.md). */
+export const JUDGE_PROMPT_VERSION = 'judge.v2';
 
 const judgmentSchema = z.object({
   index: z.number().int().min(0),
