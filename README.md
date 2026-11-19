@@ -2,7 +2,7 @@
 
 ИИ-наставник в VS Code для тех, кто учится программировать. Он замечает функцию, которую ты только что изменил, и разбирает её как наставник: не «вот баг, вот исправление», а «что вернёт эта строка, если список пуст?». Объяснение — по кнопке, готовый код — последним, когда ты сам не дошёл.
 
-**Статус:** 0.7, предварительный выпуск. В Marketplace пока нет — ставится из `.vsix`. План и принятые решения — в [docs/PLAN.md](docs/PLAN.md), изменения — в [CHANGELOG.md](CHANGELOG.md).
+**Версия 0.7.1** доступна в GitHub Releases как предварительный выпуск. Расширение устанавливается из `.vsix`. План и принятые решения — в [docs/PLAN.md](docs/PLAN.md), изменения — в [CHANGELOG.md](CHANGELOG.md).
 
 ## Как это работает
 
@@ -32,8 +32,8 @@
 
 ## Установка
 
-1. Скачай `adviser-*.vsix` со страницы [Releases](https://github.com/ivan11111111a-netizen/adviser/releases).
-2. В VS Code: «Extensions: Install from VSIX…» — или `code --install-extension adviser-0.7.0.vsix`.
+1. Скачай [adviser-0.7.1.vsix](https://github.com/ivan11111111a-netizen/adviser/releases/download/v0.7.1/adviser-0.7.1.vsix).
+2. В палитре команд VS Code выбери «Extensions: Install from VSIX…» и открой скачанный файл. Можно также выполнить в папке загрузки `code --install-extension adviser-0.7.1.vsix`.
 3. Откроется мастер «Начало работы с Adviser»: подключи модель, выбери уровень, попробуй разбор. Открыть его снова — команда «Adviser: Начало работы».
 
 ![Мастер первого запуска](docs/images/walkthrough.png)
